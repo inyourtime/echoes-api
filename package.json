@@ -1,0 +1,45 @@
+{
+  "name": "echoes-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --env-file=.env --watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "node --experimental-test-module-mocks --experimental-test-coverage --test",
+    "start": "node dist/index.js",
+    "db:migrate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:dev": "drizzle-kit studio"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@fastify/autoload": "^6.3.1",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/oauth2": "^8.2.0",
+    "@fastify/one-line-logger": "^2.1.0",
+    "@fastify/swagger": "^9.7.0",
+    "@scalar/fastify-api-reference": "^1.48.7",
+    "close-with-grace": "^2.5.0",
+    "drizzle-orm": "^0.45.1",
+    "env-schema": "^7.0.0",
+    "fast-jwt": "^6.1.0",
+    "fastify": "^5.8.2",
+    "fastify-plugin": "^5.1.0",
+    "fastify-route-preset": "^1.0.1",
+    "pg": "^8.20.0",
+    "resend": "^6.9.3",
+    "typebox": "^1.1.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.7",
+    "@types/node": "^25.5.0",
+    "@types/pg": "^8.18.0",
+    "drizzle-kit": "^0.31.9",
+    "typescript": "^5.9.3"
+  }
+}
