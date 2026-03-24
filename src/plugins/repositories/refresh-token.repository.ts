@@ -41,12 +41,14 @@ export class RefreshTokenRepository {
   }
 }
 
-const plugin = definePlugin({
-  name: 'refresh-token-repository',
-  dependencies: ['db'],
-  plugin: async (app) => {
+const plugin = definePlugin(
+  {
+    name: 'refresh-token-repository',
+    dependencies: ['db'],
+  },
+  async (app) => {
     app.decorate('refreshTokenRepository', new RefreshTokenRepository())
   },
-})
+)
 
 export default plugin

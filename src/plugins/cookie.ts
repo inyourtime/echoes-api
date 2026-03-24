@@ -15,9 +15,11 @@ export interface CookieOptions {
   expires?: Date
 }
 
-const plugin = definePlugin({
-  name: 'cookie',
-  plugin: async (app, { config }) => {
+const plugin = definePlugin(
+  {
+    name: 'cookie',
+  },
+  async (app, { config }) => {
     await app.register(fastifyCookie, {
       hook: 'onRequest',
     })
@@ -34,6 +36,6 @@ const plugin = definePlugin({
 
     app.decorate('getCookieOptions', getCookieOptions)
   },
-})
+)
 
 export default plugin

@@ -34,8 +34,8 @@ function getLoggerConfig(logLevel: string) {
     return {
       level: logLevel,
       transport: {
-        target: '@fastify/one-line-logger',
-        // target: 'pino-pretty',
+        // target: '@fastify/one-line-logger',
+        target: 'pino-pretty',
       },
     }
   }
@@ -111,8 +111,9 @@ function getConfig() {
             },
           },
         },
-        security: [{ bearerAuth: [] }, {}],
+        security: [{ bearerAuth: [] }],
       },
+      convertConstToEnum: false,
     },
     oauth2: {
       google: {

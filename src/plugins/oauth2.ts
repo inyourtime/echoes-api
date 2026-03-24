@@ -13,9 +13,11 @@ declare module 'fastify' {
  * @remarks
  * This plugin registers the Google OAuth2 plugin and sets up the necessary routes.
  */
-const plugin = definePlugin({
-  name: 'oauth2',
-  plugin: async (app, { config }) => {
+const plugin = definePlugin(
+  {
+    name: 'oauth2',
+  },
+  async (app, { config }) => {
     await app.register(fastifyOauth2, {
       name: 'googleOAuth2',
       scope: ['profile', 'email'],
@@ -30,6 +32,6 @@ const plugin = definePlugin({
       callbackUri: config.oauth2.google.callbackUri,
     })
   },
-})
+)
 
 export default plugin

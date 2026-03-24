@@ -30,12 +30,14 @@ export class UserRepository {
   }
 }
 
-const plugin = definePlugin({
-  name: 'user-repository',
-  dependencies: ['db'],
-  plugin: async (app) => {
+const plugin = definePlugin(
+  {
+    name: 'user-repository',
+    dependencies: ['db'],
+  },
+  async (app) => {
     app.decorate('userRepository', new UserRepository())
   },
-})
+)
 
 export default plugin

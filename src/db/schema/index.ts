@@ -1,10 +1,11 @@
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
   index,
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -13,6 +14,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 export const oauthProviderEnum = pgEnum('oauth_provider', ['google', 'github'])
+export const trackSourceEnum = pgEnum('track_source', ['spotify', 'manual'])
 
 // ─── users ────────────────────────────────────────────────────────────────────
 
@@ -139,12 +141,162 @@ export const verificationTokens = pgTable(
   ],
 )
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🎵 MUSIC TIMELINE SCHEMA
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── tracks ───────────────────────────────────────────────────────────────────
+// ข้อมูลกลางของเพลง ไม่ผูกกับ user ใดเลย
+// รองรับทั้ง Spotify tracks และ manual tracks ที่ user กรอกเอง
+
+export const tracks = pgTable(
+  'tracks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+
+    // บอกว่าข้อมูลมาจากไหน → dedup logic ต่างกันตาม source
+    source: trackSourceEnum('source').notNull().default('manual'),
+
+    // Spotify tracks: spotifyTrackId เป็น natural key
+    // Manual tracks: จะเป็น null
+    spotifyTrackId: varchar('spotify_track_id', { length: 255 }),
+
+    // Normalized fields สำหรับ dedup manual tracks
+    // "The Weeknd", "the weeknd", "THE WEEKND" → "the weeknd"
+    // Spotify tracks ไม่จำเป็นต้องใช้ fields นี้
+    titleNormalized: varchar('title_normalized', { length: 500 }),
+    artistNormalized: varchar('artist_normalized', { length: 500 }),
+
+    // Display fields (ทั้งสอง source ใช้ร่วมกัน)
+    title: varchar('title', { length: 500 }).notNull(),
+    artist: varchar('artist', { length: 500 }).notNull(),
+    album: varchar('album', { length: 500 }),
+    albumArtUrl: text('album_art_url'),
+    genre: varchar('genre', { length: 255 }),
+    durationMs: integer('duration_ms'),
+
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    // Spotify tracks: dedup by spotifyTrackId (partial index — เฉพาะ row ที่ไม่ null)
+    uniqueIndex('tracks_spotify_id_unique')
+      .on(t.spotifyTrackId)
+      .where(sql`spotify_track_id IS NOT NULL`),
+
+    // Manual tracks: dedup by normalized title + artist
+    uniqueIndex('tracks_manual_unique')
+      .on(t.titleNormalized, t.artistNormalized)
+      .where(sql`source = 'manual'`),
+
+    // สำหรับ Stats query "top artists"
+    index('tracks_artist_normalized_idx').on(t.artistNormalized),
+  ],
+)
+
+// ─── user_tracks ──────────────────────────────────────────────────────────────
+// Junction + บริบทส่วนตัวของแต่ละ user
+// user คนเดียวบันทึกเพลงเดิมซ้ำได้ เพราะอาจมีความทรงจำหลายครั้ง
+
+export const userTracks = pgTable(
+  'user_tracks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+
+    userId: uuid('user_id')
+      .notNull()
+      // CASCADE: ลบ user → ลบ timeline ทั้งหมดของ user นั้นตามไปด้วย
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    trackId: uuid('track_id')
+      .notNull()
+      // RESTRICT: ป้องกันลบ track ที่ยังมี user อ้างอิงอยู่
+      // (ใน real app แทบไม่ลบ tracks เลย)
+      .references(() => tracks.id, { onDelete: 'restrict' }),
+
+    // ─── User context (ข้อมูลส่วนตัวของแต่ละ user) ───────────────────────────
+
+    note: text('note'),
+
+    // YouTube URL อยู่ที่นี่ ไม่ใช่ใน tracks
+    // เพราะแต่ละ user อาจใช้ link คนละอัน หรือใส่เฉพาะบาง entry
+    youtubeUrl: text('youtube_url'),
+
+    // วันที่ user ระบุว่า "ฟังครั้งแรก" (ตั้งเองได้ ≠ createdAt)
+    // เช่น บันทึกวันนี้ แต่ระบุว่าฟังตอนไปญี่ปุ่นปีที่แล้ว
+    listenedAt: timestamp('listened_at').notNull().defaultNow(),
+
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    // Timeline view: กรองตาม user เรียงตาม listenedAt (query หลัก)
+    index('ut_user_listened_idx').on(t.userId, t.listenedAt),
+  ],
+)
+
+// ─── tags ─────────────────────────────────────────────────────────────────────
+// Tag เป็น per-user ให้แต่ละคนตั้งชื่อและสีได้อิสระ
+
+export const tags = pgTable(
+  'tags',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+
+    userId: uuid('user_id')
+      .notNull()
+      // CASCADE: ลบ user → ลบ tag ทั้งหมดของ user นั้นตามไปด้วย
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    name: varchar('name', { length: 100 }).notNull(), // "sad", "study", "coding"
+    color: varchar('color', { length: 7 }), // hex เช่น "#FF5733"
+
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // ชื่อ tag unique ต่อ user (คนละคนมี #study ได้)
+    uniqueIndex('tags_user_name_unique').on(t.userId, t.name),
+  ],
+)
+
+// ─── user_track_tags (junction) ───────────────────────────────────────────────
+// Tags ชี้ไปที่ user_tracks (ไม่ใช่ tracks)
+// เพราะ tag เป็น context ส่วนตัวของแต่ละ entry ไม่ใช่ของเพลง
+
+export const userTrackTags = pgTable(
+  'user_track_tags',
+  {
+    userTrackId: uuid('user_track_id')
+      .notNull()
+      // CASCADE: ลบ user_track entry → ลบ tags ที่ติดกับ entry นั้นตามไปด้วย
+      .references(() => userTracks.id, { onDelete: 'cascade' }),
+
+    tagId: uuid('tag_id')
+      .notNull()
+      // CASCADE: ลบ tag → ลบ tag ออกจากทุก entry ที่ติดไว้
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userTrackId, t.tagId] }),
+    // สำหรับ filter timeline by tag
+    index('utt_tag_id_idx').on(t.tagId),
+  ],
+)
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
   oauthAccounts: many(oauthAccounts),
   refreshTokens: many(refreshTokens),
   verificationTokens: many(verificationTokens),
+  userTracks: many(userTracks),
+  tags: many(tags),
 }))
 
 export const oauthAccountsRelations = relations(oauthAccounts, ({ one }) => ({
@@ -162,8 +314,44 @@ export const verificationTokensRelations = relations(verificationTokens, ({ one 
   }),
 }))
 
+export const tracksRelations = relations(tracks, ({ many }) => ({
+  userTracks: many(userTracks),
+}))
+
+export const userTracksRelations = relations(userTracks, ({ one, many }) => ({
+  user: one(users, {
+    fields: [userTracks.userId],
+    references: [users.id],
+  }),
+  track: one(tracks, {
+    fields: [userTracks.trackId],
+    references: [tracks.id],
+  }),
+  userTrackTags: many(userTrackTags),
+}))
+
+export const tagsRelations = relations(tags, ({ one, many }) => ({
+  user: one(users, {
+    fields: [tags.userId],
+    references: [users.id],
+  }),
+  userTrackTags: many(userTrackTags),
+}))
+
+export const userTrackTagsRelations = relations(userTrackTags, ({ one }) => ({
+  userTrack: one(userTracks, {
+    fields: [userTrackTags.userTrackId],
+    references: [userTracks.id],
+  }),
+  tag: one(tags, {
+    fields: [userTrackTags.tagId],
+    references: [tags.id],
+  }),
+}))
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// User and Auth Types
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type OauthAccount = typeof oauthAccounts.$inferSelect
@@ -174,3 +362,12 @@ export type OauthProvider = (typeof oauthProviderEnum.enumValues)[number]
 export type VerificationToken = typeof verificationTokens.$inferSelect
 export type NewVerificationToken = typeof verificationTokens.$inferInsert
 export type VerificationTokenType = (typeof verificationTokenTypeEnum.enumValues)[number]
+
+// 🎵 Music Timeline Types
+export type Track = typeof tracks.$inferSelect
+export type NewTrack = typeof tracks.$inferInsert
+export type UserTrack = typeof userTracks.$inferSelect
+export type NewUserTrack = typeof userTracks.$inferInsert
+export type Tag = typeof tags.$inferSelect
+export type NewTag = typeof tags.$inferInsert
+export type UserTrackTag = typeof userTrackTags.$inferSelect

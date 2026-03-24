@@ -10,10 +10,13 @@
 
 ### 1️⃣ Quick Add Song
 * **One-Tap Add:** ปุ่มเพิ่มเพลงด่วนที่กรอกข้อมูลน้อยที่สุด
-* **Data Fields:** * Song Title & Artist
+* **Data Fields:**
+    * Song Title & Artist
     * Note (Optional): บันทึกสั้นๆ เช่น "ฟังตอนเริ่มเรียน React"
     * Date: เลือกวันที่ได้ (Default เป็นวันนี้)
+    * YouTube URL (Optional): ลิงก์ไปยังเพลงบน YouTube สำหรับฟังย้อนหลัง
 * **Spotify Search:** ค้นหาเพลงจาก Database ของ Spotify เพื่อดึงชื่อและปกอัลบั้มที่ถูกต้องมาใช้
+* **YouTube Integration:** ดึงหรือเพิ่มลิงก์ YouTube สำหรับเพลงที่ไม่มีใน Spotify
 
 ### 2️⃣ Timeline View (Main Interface)
 แสดงผลแบบ **Life Journal** เรียงลำดับเวลา (Reverse Chronological):
@@ -43,7 +46,11 @@
 * **History Sync:** ดึงข้อมูลจาก *Recently Played* ใน Spotify แล้วให้ User เลือกคลิก "Save to Timeline" ได้โดยไม่ต้องพิมพ์เอง
 * **Metadata Auto-fill:** ดึงข้อมูลแนวเพลงและรูปภาพโดยอัตโนมัติ
 
-### 📈 Music Life Graph
+### 🎧 YouTube Integration
+* **Fallback Streaming:** เพิ่มลิงก์ YouTube สำหรับเพลงที่ไม่มีบน Spotify หรือเมื่อต้องการแหล่งฟังเพลงสำรอง
+* **Auto-link:** ค้นหาและแนะนำลิงก์ YouTube อัตโนมัติจากชื่อเพลงและศิลปิน
+
+### �📈 Music Life Graph
 * กราฟแท่งแสดงปริมาณเพลงใหม่ที่เพิ่มในแต่ละเดือน เพื่อดูความเคลื่อนไหวของชีวิต (Jan | ██ , Feb | ███)
 
 ### 🗺️ Memory Map

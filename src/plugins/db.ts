@@ -7,9 +7,11 @@ import { definePlugin } from '../utils/factories.ts'
  * @remarks
  * This plugin connects to the database and closes the connection when the server is closed.
  */
-const plugin = definePlugin({
-  name: 'db',
-  plugin: async (app) => {
+const plugin = definePlugin(
+  {
+    name: 'db',
+  },
+  async (app) => {
     await db.$client.connect()
     app.log.info('Connected to database')
 
@@ -18,6 +20,6 @@ const plugin = definePlugin({
       app.log.info('Disconnected from database')
     })
   },
-})
+)
 
 export default plugin

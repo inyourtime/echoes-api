@@ -8,13 +8,15 @@ import { definePlugin } from '../utils/factories.ts'
  * @remarks
  * This plugin registers the Swagger documentation plugin
  */
-const plugin = definePlugin({
-  name: 'documentation',
-  plugin: async (app, { config }) => {
+const plugin = definePlugin(
+  {
+    name: 'documentation',
+  },
+  async (app, { config }) => {
     await app.register(fastifySwagger, config.openapi)
 
     await app.register(fastifyApiReference, {
-      routePrefix: '/docs',
+      routePrefix: '/api/docs',
       logLevel: 'silent',
       configuration: {
         agent: {
@@ -23,6 +25,6 @@ const plugin = definePlugin({
       },
     })
   },
-})
+)
 
 export default plugin

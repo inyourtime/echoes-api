@@ -28,11 +28,13 @@ export class MailerService {
   }
 }
 
-const plugin = definePlugin({
-  name: 'mailer',
-  plugin: async (app, { config }) => {
+const plugin = definePlugin(
+  {
+    name: 'mailer',
+  },
+  async (app, { config }) => {
     app.decorate('mailerService', new MailerService(config))
   },
-})
+)
 
 export default plugin

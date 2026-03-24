@@ -1,28 +1,28 @@
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
-import Type from 'typebox'
 import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '../../plugins/token.ts'
 import { defineRoute } from '../../utils/factories.ts'
 import { hashPassword, hashToken, verifyPassword } from '../../utils/hash.ts'
 import { LoginBody, MeResponse, RegisterBody, RegisterResponse, TokenResponse } from './schema.ts'
 
-const route = defineRoute({
-  prefix: '/auth',
-  tags: ['Auth'],
-  plugin: async (app, { config }) => {
+const route = defineRoute(
+  {
+    prefix: '/auth',
+    tags: ['Auth'],
+  },
+  async (app, { config }) => {
     const { userRepository, refreshTokenRepository, tokenService } = app
 
     app.post(
       '/register',
       {
+        config: { auth: false },
         schema: {
-          body: RegisterBody,
           summary: 'Register a new user',
           description: 'Register a new user',
+          body: RegisterBody,
           response: {
             201: RegisterResponse,
-            409: Type.Object({
-              error: Type.String(),
-            }),
+            409: { $ref: 'responses#/properties/conflict', description: 'User already exists' },
           },
         },
       },
@@ -34,7 +34,7 @@ const route = defineRoute({
         // check if user already exists
         const existingUser = await userRepository.findByEmail(emailLower)
         if (existingUser) {
-          return reply.status(409).send({ error: 'User already exists' })
+          throw app.httpErrors.conflict('User already exists')
         }
 
         const passwordHash = hashPassword(password)
@@ -58,15 +58,14 @@ const route = defineRoute({
     app.post(
       '/login',
       {
+        config: { auth: false },
         schema: {
           body: LoginBody,
           summary: 'Login a user',
           description: 'Login a user',
           response: {
             200: TokenResponse,
-            401: Type.Object({
-              error: Type.String(),
-            }),
+            401: { $ref: 'responses#/properties/unauthorized', description: 'Invalid credentials' },
           },
         },
       },
@@ -78,12 +77,12 @@ const route = defineRoute({
         const user = await app.userRepository.findByEmail(emailLower)
 
         if (!user || !user.isActive) {
-          return reply.status(401).send({ error: 'Invalid credentials' })
+          throw app.httpErrors.unauthorized('Invalid credentials')
         }
 
         const isPasswordValid = verifyPassword(password, user.passwordHash || '')
         if (!isPasswordValid) {
-          return reply.status(401).send({ error: 'Invalid credentials' })
+          throw app.httpErrors.unauthorized('Invalid credentials')
         }
 
         const family = generateFamily()
@@ -119,21 +118,19 @@ const route = defineRoute({
     app.get(
       '/me',
       {
-        preHandler: app.authenticate,
+        config: { auth: true },
         schema: {
           summary: 'Get current user',
           response: {
             200: MeResponse,
-            404: Type.Object({
-              error: Type.String(),
-            }),
+            404: { $ref: 'responses#/properties/notFound', description: 'User not found' },
           },
         },
       },
       async (request, reply) => {
-        const user = await app.userRepository.findById(request.user!.sub)
+        const user = await app.userRepository.findById(request.getUser().sub)
         if (!user) {
-          return reply.status(404).send({ error: 'User not found' })
+          throw app.httpErrors.notFound('User not found')
         }
 
         return reply.send({
@@ -145,23 +142,20 @@ const route = defineRoute({
     app.post(
       '/refresh',
       {
+        config: { auth: false },
         schema: {
           summary: 'Refresh access token',
           response: {
             200: TokenResponse,
-            401: Type.Object({
-              error: Type.String(),
-            }),
-            403: Type.Object({
-              error: Type.String(),
-            }),
+            401: { $ref: 'responses#/properties/unauthorized', description: 'Unauthorized' },
+            403: { $ref: 'responses#/properties/forbidden', description: 'Account disabled' },
           },
         },
       },
       async (request, reply) => {
         const { refreshToken } = request.cookies
         if (!refreshToken) {
-          return reply.status(401).send({ error: 'Refresh token is required' })
+          throw app.httpErrors.unauthorized('Refresh token is required')
         }
 
         let payload: RefreshTokenPayload
@@ -172,30 +166,30 @@ const route = defineRoute({
           if (err instanceof Error && 'code' in err && err.code === TOKEN_ERROR_CODES.inactive) {
             const decoded = tokenService.decodeToken<RefreshTokenPayload>(refreshToken)
             await refreshTokenRepository.deleteByFamily(decoded.family)
-            return reply.code(401).send({ error: 'Token is not active yet' })
+            throw app.httpErrors.unauthorized('Token is not active yet')
           }
 
-          return reply.code(401).send({ error: 'Invalid or expired refresh token' })
+          throw app.httpErrors.unauthorized('Invalid or expired refresh token')
         }
 
         const stored = await refreshTokenRepository.findByFamily(payload.family)
         if (!stored) {
-          return reply.code(401).send({ error: 'Refresh token not found' })
+          throw app.httpErrors.unauthorized('Refresh token not found')
         }
 
         const hashedToken = hashToken(refreshToken)
         if (stored.tokenHash !== hashedToken) {
           await refreshTokenRepository.deleteByFamily(payload.family)
-          return reply.code(401).send({ error: 'Token reuse detected — please login again' })
+          throw app.httpErrors.unauthorized('Token reuse detected — please login again')
         }
 
         if (stored.user.tokenVersion !== payload.tokenVersion) {
           await refreshTokenRepository.deleteByFamily(payload.family)
-          return reply.code(401).send({ error: 'Token invalidated — please login again' })
+          throw app.httpErrors.unauthorized('Token invalidated — please login again')
         }
 
         if (!stored.user.isActive) {
-          return reply.code(403).send({ error: 'Account disabled' })
+          throw app.httpErrors.forbidden('Account disabled')
         }
 
         const expiresAt = slidingExpiresAt(config.jwt.slidingTTLMs)
@@ -245,6 +239,6 @@ const route = defineRoute({
     //   reply.send(data)
     // })
   },
-})
+)
 
 export default route

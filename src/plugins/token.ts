@@ -113,11 +113,13 @@ export class TokenService {
   }
 }
 
-const plugin = definePlugin({
-  name: 'token-service',
-  plugin: async (app, { config }) => {
+const plugin = definePlugin(
+  {
+    name: 'token-service',
+  },
+  async (app, { config }) => {
     app.decorate('tokenService', new TokenService(config))
   },
-})
+)
 
 export default plugin
