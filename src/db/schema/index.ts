@@ -371,3 +371,4 @@ export type NewUserTrack = typeof userTracks.$inferInsert
 export type Tag = typeof tags.$inferSelect
 export type NewTag = typeof tags.$inferInsert
 export type UserTrackTag = typeof userTrackTags.$inferSelect
+export type NewUserTrackTag = typeof userTrackTags.$inferInsert

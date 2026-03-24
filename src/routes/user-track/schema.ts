@@ -1,0 +1,188 @@
+import Type from 'typebox'
+
+// Manual track input (when not using spotifyTrackId)
+const ManualTrackInput = Type.Object(
+  {
+    title: Type.String({ minLength: 1, description: 'Track title' }),
+    artist: Type.String({ minLength: 1, description: 'Artist name' }),
+    album: Type.Optional(Type.String({ description: 'Album name' })),
+    albumArtUrl: Type.Optional(Type.String({ format: 'uri', description: 'Album art URL' })),
+    genre: Type.Optional(Type.String({ description: 'Genre' })),
+    durationMs: Type.Optional(Type.Integer({ description: 'Duration in milliseconds' })),
+  },
+  { description: 'Manual track information (used when spotifyTrackId is not provided)' },
+)
+
+// Create user track request body - supports both manual and spotify modes
+export const CreateUserTrackBody = Type.Object(
+  {
+    // Either provide spotifyTrackId OR manual track info
+    spotifyTrackId: Type.Optional(
+      Type.String({ description: 'Spotify track ID to lookup track info' }),
+    ),
+    manualTrack: Type.Optional(ManualTrackInput),
+
+    // User context fields
+    note: Type.Optional(Type.String({ description: 'Personal note about this track' })),
+    youtubeUrl: Type.Optional(
+      Type.String({ format: 'uri', description: 'YouTube URL for this track' }),
+    ),
+    listenedAt: Type.Optional(
+      Type.String({
+        format: 'date-time',
+        description: 'When the user listened to this track (ISO 8601)',
+      }),
+    ),
+    tagIds: Type.Optional(
+      Type.Array(Type.String({ format: 'uuid' }), {
+        description: 'Tag IDs to attach to this user track',
+      }),
+    ),
+  },
+  {
+    description:
+      'Create a user track entry. Either provide spotifyTrackId (to auto-fetch from Spotify) OR manualTrack (to create manually).',
+  },
+)
+
+// Tag info
+const TagInfo = Type.Object({
+  id: Type.String({ format: 'uuid' }),
+  userId: Type.String({ format: 'uuid' }),
+  name: Type.String(),
+  color: Type.Union([Type.String(), Type.Null()]),
+  createdAt: Type.String({ format: 'date-time' }),
+})
+
+// Track info in response
+const TrackInfo = Type.Object({
+  id: Type.String({ format: 'uuid' }),
+  source: Type.Union([Type.Literal('spotify'), Type.Literal('manual')]),
+  spotifyTrackId: Type.Union([Type.String(), Type.Null()]),
+  title: Type.String(),
+  artist: Type.String(),
+  album: Type.Union([Type.String(), Type.Null()]),
+  albumArtUrl: Type.Union([Type.String(), Type.Null()]),
+  genre: Type.Union([Type.String(), Type.Null()]),
+  durationMs: Type.Union([Type.Integer(), Type.Null()]),
+})
+
+// User track response
+const UserTrackInfo = Type.Object({
+  id: Type.String({ format: 'uuid' }),
+  userId: Type.String({ format: 'uuid' }),
+  trackId: Type.String({ format: 'uuid' }),
+  note: Type.Union([Type.String(), Type.Null()]),
+  youtubeUrl: Type.Union([Type.String(), Type.Null()]),
+  listenedAt: Type.String({ format: 'date-time' }),
+  createdAt: Type.String({ format: 'date-time' }),
+  updatedAt: Type.String({ format: 'date-time' }),
+})
+
+// User track with track and tags
+const UserTrackWithTrackAndTags = Type.Object({
+  ...UserTrackInfo.properties,
+  track: TrackInfo,
+  tags: Type.Array(TagInfo),
+})
+
+// Create response
+export const CreateUserTrackResponse = Type.Object({
+  userTrack: UserTrackWithTrackAndTags,
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LIST USER TRACKS SCHEMAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Query parameters for listing user tracks
+export const ListUserTracksQuery = Type.Object(
+  {
+    limit: Type.Optional(
+      Type.Integer({
+        default: 20,
+        minimum: 1,
+        maximum: 100,
+        description: 'Number of items to return per page',
+      }),
+    ),
+    offset: Type.Optional(
+      Type.Integer({
+        default: 0,
+        minimum: 0,
+        description: 'Number of items to skip',
+      }),
+    ),
+    sort: Type.Optional(
+      Type.Union([Type.Literal('listenedAt'), Type.Literal('createdAt')], {
+        default: 'listenedAt',
+        description: 'Field to sort by',
+      }),
+    ),
+    order: Type.Optional(
+      Type.Union([Type.Literal('asc'), Type.Literal('desc')], {
+        default: 'desc',
+        description: 'Sort order',
+      }),
+    ),
+  },
+  { description: 'Query parameters for paginated user track list' },
+)
+
+// Pagination metadata
+const PaginationMeta = Type.Object({
+  total: Type.Integer({ description: 'Total number of items' }),
+  limit: Type.Integer({ description: 'Items per page' }),
+  offset: Type.Integer({ description: 'Current offset' }),
+  hasMore: Type.Boolean({ description: 'Whether there are more items' }),
+})
+
+// List response with pagination
+export const ListUserTracksResponse = Type.Object({
+  userTracks: Type.Array(UserTrackWithTrackAndTags),
+  meta: PaginationMeta,
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GET SINGLE USER TRACK SCHEMAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Single user track response
+export const GetUserTrackResponse = Type.Object({
+  userTrack: UserTrackWithTrackAndTags,
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UPDATE USER TRACK SCHEMAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Update user track request body (all fields optional)
+export const UpdateUserTrackBody = Type.Object(
+  {
+    note: Type.Optional(
+      Type.Union([Type.String(), Type.Null()], {
+        description: 'Personal note about this track (null to clear)',
+      }),
+    ),
+    youtubeUrl: Type.Optional(
+      Type.Union([Type.String(), Type.Null()], {
+        description: 'YouTube URL for this track (null to clear)',
+      }),
+    ),
+    listenedAt: Type.Optional(
+      Type.String({
+        format: 'date-time',
+        description: 'When the user listened to this track (ISO 8601)',
+      }),
+    ),
+    tagIds: Type.Optional(
+      Type.Array(Type.String({ format: 'uuid' }), {
+        description: 'Replace all tags with these IDs (empty array to clear all)',
+      }),
+    ),
+  },
+  { description: 'Update user track fields. All fields are optional.' },
+)
+
+// Update response (same as get response)
+export const UpdateUserTrackResponse = GetUserTrackResponse

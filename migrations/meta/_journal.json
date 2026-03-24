@@ -15,6 +15,13 @@
       "when": 1773845221241,
       "tag": "0001_overconfident_prism",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774358561727,
+      "tag": "0002_awesome_lifeguard",
+      "breakpoints": true
     }
   ]
 }
