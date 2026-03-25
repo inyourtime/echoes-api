@@ -23,6 +23,11 @@ export class UserTrackRepository {
       where: eq(userTracks.id, id),
       with: {
         track: true,
+        userTrackTags: {
+          with: {
+            tag: true,
+          },
+        },
       },
     })
   }
@@ -48,6 +53,11 @@ export class UserTrackRepository {
       offset,
       with: {
         track: true,
+        userTrackTags: {
+          with: {
+            tag: true,
+          },
+        },
       },
     })
 

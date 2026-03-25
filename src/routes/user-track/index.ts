@@ -1,5 +1,5 @@
 import Type from 'typebox'
-import type { Tag, Track, UserTrack } from '../../db/schema/index.ts'
+
 import { defineRoute } from '../../utils/factories.ts'
 import {
   CreateUserTrackBody,
@@ -10,42 +10,6 @@ import {
   UpdateUserTrackBody,
   UpdateUserTrackResponse,
 } from './schema.ts'
-
-// UserTrack with track relation from repository
-interface UserTrackWithTrack extends UserTrack {
-  track: Track
-}
-
-// UserTrackTag with tag relation from repository
-interface UserTrackTagWithTag {
-  userTrackId: string
-  tagId: string
-  tag: Tag
-}
-
-// Helper to format user track with track and tags for response
-function formatUserTrack(ut: UserTrackWithTrack, userTrackTags: UserTrackTagWithTag[]) {
-  const track = ut.track
-  return {
-    ...ut,
-    listenedAt: ut.listenedAt.toISOString(),
-    createdAt: ut.createdAt.toISOString(),
-    updatedAt: ut.updatedAt.toISOString(),
-    track: {
-      ...track,
-      album: track.album ?? null,
-      albumArtUrl: track.albumArtUrl ?? null,
-      genre: track.genre ?? null,
-      durationMs: track.durationMs ?? null,
-      spotifyTrackId: track.spotifyTrackId ?? null,
-    },
-    tags: userTrackTags.map((utt) => ({
-      ...utt.tag,
-      color: utt.tag.color ?? null,
-      createdAt: utt.tag.createdAt.toISOString(),
-    })),
-  }
-}
 
 const route = defineRoute(
   {
@@ -88,11 +52,8 @@ const route = defineRoute(
           throw app.httpErrors.notFound('User track not found')
         }
 
-        // Get tags for this user track
-        const userTrackTags = await userTrackTagRepository.findByUserTrackId(id)
-
         return reply.send({
-          userTrack: formatUserTrack(userTrack, userTrackTags),
+          userTrack: { ...userTrack, tags: userTrack.userTrackTags.map((t) => t.tag) },
         })
       },
     )
@@ -135,7 +96,7 @@ const route = defineRoute(
         const updates: Record<string, unknown> = {}
         if (note !== undefined) updates.note = note
         if (youtubeUrl !== undefined) updates.youtubeUrl = youtubeUrl
-        if (listenedAt !== undefined) updates.listenedAt = new Date(listenedAt)
+        if (listenedAt !== undefined) updates.listenedAt = new Date(listenedAt).toISOString()
 
         // Update user track if there are changes
         if (Object.keys(updates).length > 0) {
@@ -161,10 +122,11 @@ const route = defineRoute(
           throw app.httpErrors.internalServerError('Failed to update user track')
         }
 
-        const userTrackTags = await userTrackTagRepository.findByUserTrackId(id)
-
         return reply.send({
-          userTrack: formatUserTrack(updatedUserTrack, userTrackTags),
+          userTrack: {
+            ...updatedUserTrack,
+            tags: updatedUserTrack.userTrackTags.map((t) => t.tag),
+          },
         })
       },
     )
@@ -239,13 +201,11 @@ const route = defineRoute(
           order,
         })
 
-        // Fetch tags for each user track
-        const userTracksWithTags = await Promise.all(
-          items.map(async (ut) => {
-            const userTrackTags = await userTrackTagRepository.findByUserTrackId(ut.id)
-            return formatUserTrack(ut, userTrackTags)
-          }),
-        )
+        // Format the fetched items directly since tags are now included
+        const userTracksWithTags = items.map((ut) => ({
+          ...ut,
+          tags: ut.userTrackTags.map((t) => t.tag),
+        }))
 
         return reply.send({
           userTracks: userTracksWithTags,
@@ -344,7 +304,7 @@ const route = defineRoute(
           trackId,
           note,
           youtubeUrl,
-          listenedAt: listenedAt ? new Date(listenedAt) : new Date(),
+          listenedAt: listenedAt ? new Date(listenedAt).toISOString() : new Date().toISOString(),
         })
 
         // Attach tags if provided
@@ -368,10 +328,11 @@ const route = defineRoute(
           throw app.httpErrors.internalServerError('Failed to create user track')
         }
 
-        const userTrackTags = await userTrackTagRepository.findByUserTrackId(userTrack.id)
-
         return reply.code(201).send({
-          userTrack: formatUserTrack(userTrackWithTrack, userTrackTags),
+          userTrack: {
+            ...userTrackWithTrack,
+            tags: userTrackWithTrack.userTrackTags.map((t) => t.tag),
+          },
         })
       },
     )

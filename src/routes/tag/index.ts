@@ -37,11 +37,7 @@ const route = defineRoute(
         const tags = await tagRepository.findByUserId({ userId })
 
         return reply.send({
-          tags: tags.map((tag) => ({
-            ...tag,
-            color: tag.color ?? null,
-            createdAt: tag.createdAt.toISOString(),
-          })),
+          tags,
         })
       },
     )
@@ -80,11 +76,7 @@ const route = defineRoute(
         })
 
         return reply.code(201).send({
-          tag: {
-            ...tag,
-            color: tag.color ?? null,
-            createdAt: tag.createdAt.toISOString(),
-          },
+          tag,
         })
       },
     )
@@ -118,11 +110,7 @@ const route = defineRoute(
         }
 
         return reply.send({
-          tag: {
-            ...tag,
-            color: tag.color ?? null,
-            createdAt: tag.createdAt.toISOString(),
-          },
+          tag,
         })
       },
     )
@@ -178,11 +166,7 @@ const route = defineRoute(
         const tag = await tagRepository.update(id, updates)
 
         return reply.send({
-          tag: {
-            ...tag,
-            color: tag.color ?? null,
-            createdAt: tag.createdAt.toISOString(),
-          },
+          tag,
         })
       },
     )
