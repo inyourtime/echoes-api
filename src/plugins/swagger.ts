@@ -19,9 +19,10 @@ const plugin = definePlugin(
       routePrefix: '/api/docs',
       logLevel: 'silent',
       configuration: {
-        agent: {
-          disabled: true,
-        },
+        theme: 'saturn',
+        agent: { disabled: true },
+        mcp: { disabled: true },
+        hideClientButton: true,
       },
     })
   },

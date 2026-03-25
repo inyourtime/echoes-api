@@ -168,11 +168,10 @@ export const tracks = pgTable(
     // Manual tracks: จะเป็น null
     externalId: varchar('external_id', { length: 255 }),
 
-    // Normalized fields สำหรับ dedup manual tracks
+    // Normalized fields สำหรับ dedup tracks
     // "The Weeknd", "the weeknd", "THE WEEKND" → "the weeknd"
-    // External tracks ไม่จำเป็นต้องใช้ fields นี้
-    titleNormalized: varchar('title_normalized', { length: 500 }),
-    artistNormalized: varchar('artist_normalized', { length: 500 }),
+    titleNormalized: varchar('title_normalized', { length: 500 }).notNull(),
+    artistNormalized: varchar('artist_normalized', { length: 500 }).notNull(),
 
     // Display fields (ทั้งสอง source ใช้ร่วมกัน)
     title: varchar('title', { length: 500 }).notNull(),
@@ -193,13 +192,8 @@ export const tracks = pgTable(
       .$onUpdate(() => new Date()),
   },
   (t) => [
-    // External tracks: dedup by externalId (partial index — เฉพาะ row ที่ไม่ null)
-    uniqueIndex('tracks_external_id_unique').on(t.externalId).where(sql`external_id IS NOT NULL`),
-
-    // Manual tracks: dedup by normalized title + artist
-    uniqueIndex('tracks_manual_unique')
-      .on(t.titleNormalized, t.artistNormalized)
-      .where(sql`source = 'manual'`),
+    // Tracks: dedup by normalized title + artist
+    uniqueIndex('tracks_unique').on(t.titleNormalized, t.artistNormalized),
 
     // สำหรับ Stats query "top artists"
     index('tracks_artist_normalized_idx').on(t.artistNormalized),

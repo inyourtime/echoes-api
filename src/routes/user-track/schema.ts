@@ -2,12 +2,12 @@ import Type from 'typebox'
 import { TDate } from '../../plugins/shared-schemas.ts'
 
 // Manual track input (when not using externalId)
-const ManualTrackInput = Type.Object(
+const TrackInput = Type.Object(
   {
     title: Type.String({ minLength: 1, description: 'Track title' }),
     artist: Type.String({ minLength: 1, description: 'Artist name' }),
   },
-  { description: 'Manual track information (used when externalId is not provided)' },
+  { description: 'Track information' },
 )
 
 // Create user track request body - supports both manual and external modes
@@ -15,9 +15,9 @@ export const CreateUserTrackBody = Type.Object(
   {
     // Either provide externalId OR manual track info
     externalId: Type.Optional(
-      Type.String({ description: 'External track ID to lookup track info' }),
+      Type.String({ description: 'External track ID if source is external' }),
     ),
-    manualTrack: Type.Optional(ManualTrackInput),
+    track: TrackInput,
 
     // User context fields
     note: Type.Optional(Type.String({ description: 'Personal note about this track' })),
@@ -32,6 +32,7 @@ export const CreateUserTrackBody = Type.Object(
     ),
     tagIds: Type.Optional(
       Type.Array(Type.String({ format: 'uuid' }), {
+        maxItems: 10,
         description: 'Tag IDs to attach to this user track',
       }),
     ),

@@ -1,8 +1,8 @@
-async function searchSongs(query) {
+async function searchSongs(query: string) {
   const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=5`
 
   const response = await fetch(url)
-  const data = await response.json()
+  const data = (await response.json()) as { results: any[] }
 
   console.log(data.results)
 }

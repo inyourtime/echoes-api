@@ -27,7 +27,7 @@ const plugin = definePlugin(
     function getCookieOptions(expires?: Date): CookieOptions {
       return {
         httpOnly: true,
-        secure: config.isCookieSecure, // HTTPS only in production
+        secure: config.enableCookieSecure, // HTTPS only in production
         sameSite: 'lax',
         path: '/',
         ...(expires ? { expires } : {}),

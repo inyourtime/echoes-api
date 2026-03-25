@@ -26,7 +26,7 @@ export interface IConfig {
     slidingTTLMs: number // milliseconds
     nbfGrace: string // e.g., "10s", "1m"
   }
-  isCookieSecure: boolean
+  enableCookieSecure: boolean
 }
 
 function getLoggerConfig(logLevel: string) {
@@ -67,7 +67,7 @@ const schema = Type.Object({
   JWT_ACCESS_TOKEN_TTL: Type.String({ default: '15m' }), // 15 minutes
   JWT_SLIDING_TTL_MS: Type.Number({ default: 30 * 24 * 60 * 60 * 1000 }), // 30 days in milliseconds
   JWT_NBF_GRACE: Type.String({ default: '10s' }), // 10 seconds
-  IS_COOKIE_SECURE: Type.Boolean({ default: true }),
+  ENABLE_COOKIE_SECURE: Type.Boolean({ default: true }),
 })
 
 function getConfig() {
@@ -133,7 +133,7 @@ function getConfig() {
       slidingTTLMs: env.JWT_SLIDING_TTL_MS,
       nbfGrace: env.JWT_NBF_GRACE,
     },
-    isCookieSecure: env.IS_COOKIE_SECURE,
+    enableCookieSecure: env.ENABLE_COOKIE_SECURE,
   }
 
   return config

@@ -96,12 +96,12 @@ const route = defineRoute(
         await refreshTokenRepository.createOrUpdate({
           userId: user.id,
           family,
-          expiresAt: expiresAt.toISOString(),
+          expiresAt,
           tokenHash,
           tokenVersion: user.tokenVersion,
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'] || null,
-          lastUsedAt: new Date().toISOString(),
+          lastUsedAt: new Date(),
         })
 
         // set refresh token to cookie
@@ -202,12 +202,12 @@ const route = defineRoute(
         await refreshTokenRepository.createOrUpdate({
           userId: stored.user.id,
           family: stored.family,
-          expiresAt: expiresAt.toISOString(),
+          expiresAt,
           tokenHash,
           tokenVersion: stored.user.tokenVersion,
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'] || null,
-          lastUsedAt: new Date().toISOString(),
+          lastUsedAt: new Date(),
         })
 
         // set refresh token to cookie

@@ -1,6 +1,6 @@
-import { asc, count, desc, eq } from 'drizzle-orm'
+import { and, asc, count, desc, eq, sql } from 'drizzle-orm'
 import { db } from '../../db/index.ts'
-import { type NewUserTrack, userTracks } from '../../db/schema/index.ts'
+import { type NewUserTrack, userTracks, userTrackTags } from '../../db/schema/index.ts'
 import { definePlugin } from '../../utils/factories.ts'
 
 declare module 'fastify' {
@@ -67,8 +67,38 @@ export class UserTrackRepository {
     }
   }
 
+  async findByUserIdAndTrackIdOnSameDay(userId: string, trackId: string, listenedAt: Date) {
+    const listenedAtDate = sql`DATE(${listenedAt})`
+    return db.query.userTracks.findFirst({
+      where: and(
+        eq(userTracks.userId, userId),
+        eq(userTracks.trackId, trackId),
+        sql`DATE(${userTracks.listenedAt}) = ${listenedAtDate}`,
+      ),
+    })
+  }
+
   async create(userTrack: NewUserTrack) {
     return (await db.insert(userTracks).values(userTrack).returning())[0]
+  }
+
+  async createWithTags(userTrack: NewUserTrack, tagIds: string[] | undefined) {
+    return db.transaction(async (tx) => {
+      // 1. Create userTrack
+      const [userTrackReturn] = await tx.insert(userTracks).values(userTrack).returning()
+
+      // 2. Insert tags (bulk is better 👇)
+      if (tagIds && tagIds.length > 0) {
+        await tx.insert(userTrackTags).values(
+          tagIds.map((tagId) => ({
+            userTrackId: userTrackReturn.id,
+            tagId,
+          })),
+        )
+      }
+
+      return userTrackReturn
+    })
   }
 
   async update(id: string, updates: Partial<NewUserTrack>) {

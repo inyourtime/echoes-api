@@ -232,91 +232,60 @@ const route = defineRoute(
             201: CreateUserTrackResponse,
             400: { $ref: 'responses#/properties/badRequest', description: 'Invalid request' },
             401: { $ref: 'responses#/properties/unauthorized', description: 'Unauthorized' },
+            409: { $ref: 'responses#/properties/conflict', description: 'Already logged track' },
           },
         },
       },
       async (request, reply) => {
         const userId = request.getUser().sub
-        const { externalId, manualTrack, note, youtubeUrl, listenedAt, tagIds } = request.body
+        const { externalId, track, note, youtubeUrl, listenedAt, tagIds } = request.body
 
-        // Validate that exactly one of externalId or manualTrack is provided
-        if (externalId && manualTrack) {
-          throw app.httpErrors.badRequest(
-            'Cannot provide both externalId and manualTrack. Choose one.',
-          )
-        }
-        if (!externalId && !manualTrack) {
-          throw app.httpErrors.badRequest('Must provide either externalId or manualTrack.')
-        }
+        const listenedAtDate = listenedAt ? new Date(listenedAt) : new Date()
 
-        let trackId: string
+        const titleNormalized = track.title.toLowerCase().trim()
+        const artistNormalized = track.artist.toLowerCase().trim()
 
-        if (externalId) {
-          // Try to find existing track by external ID
-          let track = await trackRepository.findByExternalId(externalId)
+        let existTrack = await trackRepository.findByNormalizedTitleArtist(
+          titleNormalized,
+          artistNormalized,
+        )
 
-          if (!track) {
-            // Create new track with Spotify source
-            track = await trackRepository.create({
-              source: 'spotify',
-              externalId,
-              title: 'Unknown Title',
-              artist: 'Unknown Artist',
-            })
-          }
-
-          trackId = track.id
-        } else {
-          // manualTrack is guaranteed to exist here due to validation above
-          const mt = manualTrack!
-
-          // Normalize for deduplication
-          const titleNormalized = mt.title.toLowerCase().trim()
-          const artistNormalized = mt.artist.toLowerCase().trim()
-
-          // Try to find existing track by normalized title + artist
-          let track = await trackRepository.findByNormalizedTitleArtist(
+        if (!existTrack) {
+          existTrack = await trackRepository.create({
+            source: externalId ? 'apple-music' : 'manual',
+            externalId: externalId ? externalId : null,
+            title: track.title,
+            artist: track.artist,
             titleNormalized,
             artistNormalized,
+          })
+        }
+
+        const trackId = existTrack.id
+
+        // Check for duplicate user track on same day
+        const existingUserTrack = await userTrackRepository.findByUserIdAndTrackIdOnSameDay(
+          userId,
+          trackId,
+          listenedAtDate,
+        )
+        if (existingUserTrack) {
+          throw app.httpErrors.conflict(
+            `You have already logged this track on ${listenedAtDate.toISOString().split('T')[0]}`,
           )
-
-          if (!track) {
-            // Create new manual track
-            track = await trackRepository.create({
-              source: 'manual',
-              title: mt.title,
-              artist: mt.artist,
-              titleNormalized,
-              artistNormalized,
-            })
-          }
-
-          trackId = track.id
         }
 
         // Create user track entry
-        const userTrack = await userTrackRepository.create({
-          userId,
-          trackId,
-          note,
-          youtubeUrl,
-          listenedAt: listenedAt ? new Date(listenedAt) : new Date(),
-        })
-
-        // Attach tags if provided
-        if (tagIds && tagIds.length > 0) {
-          // Verify all tags belong to the user
-          for (const tagId of tagIds) {
-            const tag = await tagRepository.findById(tagId)
-            if (!tag || tag.userId !== userId) {
-              throw app.httpErrors.badRequest(`Invalid tag ID: ${tagId}`)
-            }
-            await userTrackTagRepository.create({
-              userTrackId: userTrack.id,
-              tagId,
-            })
-          }
-        }
+        const userTrack = await userTrackRepository.createWithTags(
+          {
+            userId,
+            trackId,
+            note,
+            youtubeUrl,
+            listenedAt: listenedAtDate,
+          },
+          tagIds,
+        )
 
         // Fetch the complete user track with track and tags for response
         const userTrackWithTrack = await userTrackRepository.findById(userTrack.id)
