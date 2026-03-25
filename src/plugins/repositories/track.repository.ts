@@ -16,9 +16,9 @@ export class TrackRepository {
     })
   }
 
-  async findBySpotifyId(spotifyTrackId: string) {
+  async findByExternalId(externalId: string) {
     return db.query.tracks.findFirst({
-      where: and(eq(tracks.spotifyTrackId, spotifyTrackId), eq(tracks.source, 'spotify')),
+      where: and(eq(tracks.externalId, externalId)),
     })
   }
 

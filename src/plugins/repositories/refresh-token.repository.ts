@@ -19,7 +19,7 @@ export class RefreshTokenRepository {
         set: {
           expiresAt: refreshToken.expiresAt,
           tokenVersion: refreshToken.tokenVersion,
-          lastUsedAt: new Date().toISOString(),
+          lastUsedAt: new Date(),
           ipAddress: refreshToken.ipAddress,
           userAgent: refreshToken.userAgent ?? null,
           tokenHash: refreshToken.tokenHash,

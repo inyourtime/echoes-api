@@ -1,6 +1,7 @@
-import { relations, sql } from 'drizzle-orm'
+import { relations, type SQL, sql } from 'drizzle-orm'
 import {
   boolean,
+  customType,
   index,
   integer,
   pgEnum,
@@ -13,8 +14,14 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return 'tsvector'
+  },
+})
+
 export const oauthProviderEnum = pgEnum('oauth_provider', ['google', 'github'])
-export const trackSourceEnum = pgEnum('track_source', ['spotify', 'manual'])
+export const trackSourceEnum = pgEnum('track_source', ['spotify', 'apple-music', 'manual'])
 
 // ─── users ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +30,7 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     email: varchar('email', { length: 255 }).notNull().unique(),
-    emailVerifiedAt: timestamp('email_verified_at', { mode: 'string' }),
+    emailVerifiedAt: timestamp('email_verified_at'),
     passwordHash: varchar('password_hash', { length: 255 }),
     name: varchar('name', { length: 255 }),
     avatarUrl: text('avatar_url'),
@@ -31,11 +38,11 @@ export const users = pgTable(
     // bump เพื่อ invalidate refresh token ทั้งหมดของ user ทันที
     // (logout-all, password change, account compromise)
     tokenVersion: integer('token_version').notNull().default(0),
-    createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' })
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
       .notNull()
       .defaultNow()
-      .$onUpdate(() => new Date().toISOString()),
+      .$onUpdate(() => new Date()),
   },
   (t) => [uniqueIndex('users_email_idx').on(t.email)],
 )
@@ -53,13 +60,13 @@ export const oauthAccounts = pgTable(
     providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
     accessToken: text('access_token'),
     refreshToken: text('refresh_token'),
-    tokenExpiresAt: timestamp('token_expires_at', { mode: 'string' }),
+    tokenExpiresAt: timestamp('token_expires_at'),
     scope: varchar('scope', { length: 512 }),
-    createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' })
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
       .notNull()
       .defaultNow()
-      .$onUpdate(() => new Date().toISOString()),
+      .$onUpdate(() => new Date()),
   },
   (t) => [
     uniqueIndex('oauth_user_provider_idx').on(t.userId, t.provider),
@@ -98,11 +105,11 @@ export const refreshTokens = pgTable(
     // ถ้า users.tokenVersion > นี้ → token ถูก invalidate แล้ว
     tokenVersion: integer('token_version').notNull().default(0),
     // sliding expiry: เลื่อนออกทุก rotate → user ที่ active ไม่โดน logout
-    expiresAt: timestamp('expires_at', { mode: 'string' }).notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
     ipAddress: varchar('ip_address', { length: 45 }),
     userAgent: text('user_agent'),
-    lastUsedAt: timestamp('last_used_at', { mode: 'string' }).notNull().defaultNow(),
-    createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('refresh_tokens_family_idx').on(t.family),
@@ -130,9 +137,9 @@ export const verificationTokens = pgTable(
     type: verificationTokenTypeEnum('type').notNull(),
     // store SHA256(token)
     tokenHash: varchar('token_hash', { length: 64 }).notNull(),
-    expiresAt: timestamp('expires_at', { mode: 'string' }).notNull(),
-    usedAt: timestamp('used_at', { mode: 'string' }),
-    createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at').notNull(),
+    usedAt: timestamp('used_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('verification_tokens_hash_idx').on(t.tokenHash),
@@ -147,7 +154,7 @@ export const verificationTokens = pgTable(
 
 // ─── tracks ───────────────────────────────────────────────────────────────────
 // ข้อมูลกลางของเพลง ไม่ผูกกับ user ใดเลย
-// รองรับทั้ง Spotify tracks และ manual tracks ที่ user กรอกเอง
+// รองรับทั้ง external tracks และ manual tracks ที่ user กรอกเอง
 
 export const tracks = pgTable(
   'tracks',
@@ -157,35 +164,37 @@ export const tracks = pgTable(
     // บอกว่าข้อมูลมาจากไหน → dedup logic ต่างกันตาม source
     source: trackSourceEnum('source').notNull().default('manual'),
 
-    // Spotify tracks: spotifyTrackId เป็น natural key
+    // External id (spotifyTrackId, appleMusicTrackId, etc)
     // Manual tracks: จะเป็น null
-    spotifyTrackId: varchar('spotify_track_id', { length: 255 }),
+    externalId: varchar('external_id', { length: 255 }),
 
     // Normalized fields สำหรับ dedup manual tracks
     // "The Weeknd", "the weeknd", "THE WEEKND" → "the weeknd"
-    // Spotify tracks ไม่จำเป็นต้องใช้ fields นี้
+    // External tracks ไม่จำเป็นต้องใช้ fields นี้
     titleNormalized: varchar('title_normalized', { length: 500 }),
     artistNormalized: varchar('artist_normalized', { length: 500 }),
 
     // Display fields (ทั้งสอง source ใช้ร่วมกัน)
     title: varchar('title', { length: 500 }).notNull(),
     artist: varchar('artist', { length: 500 }).notNull(),
-    album: varchar('album', { length: 500 }),
-    albumArtUrl: text('album_art_url'),
-    genre: varchar('genre', { length: 255 }),
-    durationMs: integer('duration_ms'),
 
-    createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' })
+    search: tsvector('search').generatedAlwaysAs(
+      (): SQL =>
+        sql`
+      setweight(to_tsvector('simple', ${tracks.title}), 'A') ||
+      setweight(to_tsvector('simple', ${tracks.artist}), 'B')
+    `,
+    ),
+
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
       .notNull()
       .defaultNow()
-      .$onUpdate(() => new Date().toISOString()),
+      .$onUpdate(() => new Date()),
   },
   (t) => [
-    // Spotify tracks: dedup by spotifyTrackId (partial index — เฉพาะ row ที่ไม่ null)
-    uniqueIndex('tracks_spotify_id_unique')
-      .on(t.spotifyTrackId)
-      .where(sql`spotify_track_id IS NOT NULL`),
+    // External tracks: dedup by externalId (partial index — เฉพาะ row ที่ไม่ null)
+    uniqueIndex('tracks_external_id_unique').on(t.externalId).where(sql`external_id IS NOT NULL`),
 
     // Manual tracks: dedup by normalized title + artist
     uniqueIndex('tracks_manual_unique')
@@ -194,6 +203,7 @@ export const tracks = pgTable(
 
     // สำหรับ Stats query "top artists"
     index('tracks_artist_normalized_idx').on(t.artistNormalized),
+    index('tracks_search_idx').using('gin', t.search),
   ],
 )
 
@@ -224,20 +234,24 @@ export const userTracks = pgTable(
     // YouTube URL อยู่ที่นี่ ไม่ใช่ใน tracks
     // เพราะแต่ละ user อาจใช้ link คนละอัน หรือใส่เฉพาะบาง entry
     youtubeUrl: text('youtube_url'),
+    spotifyUrl: text('spotify_url'),
+    appleMusicUrl: text('apple_music_url'),
+    otherUrl: text('other_url'),
 
     // วันที่ user ระบุว่า "ฟังครั้งแรก" (ตั้งเองได้ ≠ createdAt)
     // เช่น บันทึกวันนี้ แต่ระบุว่าฟังตอนไปญี่ปุ่นปีที่แล้ว
-    listenedAt: timestamp('listened_at', { mode: 'string' }).notNull().defaultNow(),
+    listenedAt: timestamp('listened_at').notNull().defaultNow(),
 
-    createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' })
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
       .notNull()
       .defaultNow()
-      .$onUpdate(() => new Date().toISOString()),
+      .$onUpdate(() => new Date()),
   },
   (t) => [
     // Timeline view: กรองตาม user เรียงตาม listenedAt (query หลัก)
     index('ut_user_listened_idx').on(t.userId, t.listenedAt),
+    index('ut_user_track_idx').on(t.userId, t.trackId),
   ],
 )
 
@@ -257,7 +271,7 @@ export const tags = pgTable(
     name: varchar('name', { length: 100 }).notNull(), // "sad", "study", "coding"
     color: varchar('color', { length: 7 }), // hex เช่น "#FF5733"
 
-    createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
     // ชื่อ tag unique ต่อ user (คนละคนมี #study ได้)

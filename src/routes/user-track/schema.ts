@@ -1,24 +1,21 @@
 import Type from 'typebox'
+import { TDate } from '../../plugins/shared-schemas.ts'
 
-// Manual track input (when not using spotifyTrackId)
+// Manual track input (when not using externalId)
 const ManualTrackInput = Type.Object(
   {
     title: Type.String({ minLength: 1, description: 'Track title' }),
     artist: Type.String({ minLength: 1, description: 'Artist name' }),
-    album: Type.Optional(Type.String({ description: 'Album name' })),
-    albumArtUrl: Type.Optional(Type.String({ format: 'uri', description: 'Album art URL' })),
-    genre: Type.Optional(Type.String({ description: 'Genre' })),
-    durationMs: Type.Optional(Type.Integer({ description: 'Duration in milliseconds' })),
   },
-  { description: 'Manual track information (used when spotifyTrackId is not provided)' },
+  { description: 'Manual track information (used when externalId is not provided)' },
 )
 
-// Create user track request body - supports both manual and spotify modes
+// Create user track request body - supports both manual and external modes
 export const CreateUserTrackBody = Type.Object(
   {
-    // Either provide spotifyTrackId OR manual track info
-    spotifyTrackId: Type.Optional(
-      Type.String({ description: 'Spotify track ID to lookup track info' }),
+    // Either provide externalId OR manual track info
+    externalId: Type.Optional(
+      Type.String({ description: 'External track ID to lookup track info' }),
     ),
     manualTrack: Type.Optional(ManualTrackInput),
 
@@ -41,7 +38,7 @@ export const CreateUserTrackBody = Type.Object(
   },
   {
     description:
-      'Create a user track entry. Either provide spotifyTrackId (to auto-fetch from Spotify) OR manualTrack (to create manually).',
+      'Create a user track entry. Either provide externalId (to auto-fetch from external source) OR manualTrack (to create manually).',
   },
 )
 
@@ -51,20 +48,20 @@ const TagInfo = Type.Object({
   userId: Type.String({ format: 'uuid' }),
   name: Type.String(),
   color: Type.Union([Type.String(), Type.Null()]),
-  createdAt: Type.String({ format: 'date-time' }),
+  createdAt: TDate,
 })
 
 // Track info in response
 const TrackInfo = Type.Object({
   id: Type.String({ format: 'uuid' }),
-  source: Type.Union([Type.Literal('spotify'), Type.Literal('manual')]),
-  spotifyTrackId: Type.Union([Type.String(), Type.Null()]),
+  source: Type.Union([
+    Type.Literal('spotify'),
+    Type.Literal('manual'),
+    Type.Literal('apple-music'),
+  ]),
+  externalId: Type.Union([Type.String(), Type.Null()]),
   title: Type.String(),
   artist: Type.String(),
-  album: Type.Union([Type.String(), Type.Null()]),
-  albumArtUrl: Type.Union([Type.String(), Type.Null()]),
-  genre: Type.Union([Type.String(), Type.Null()]),
-  durationMs: Type.Union([Type.Integer(), Type.Null()]),
 })
 
 // User track response
@@ -74,9 +71,9 @@ const UserTrackInfo = Type.Object({
   trackId: Type.String({ format: 'uuid' }),
   note: Type.Union([Type.String(), Type.Null()]),
   youtubeUrl: Type.Union([Type.String(), Type.Null()]),
-  listenedAt: Type.String({ format: 'date-time' }),
-  createdAt: Type.String({ format: 'date-time' }),
-  updatedAt: Type.String({ format: 'date-time' }),
+  listenedAt: TDate,
+  createdAt: TDate,
+  updatedAt: TDate,
 })
 
 // User track with track and tags

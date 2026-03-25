@@ -1,6 +1,8 @@
 import Type from 'typebox'
 import { definePlugin } from '../utils/factories.ts'
 
+export const TDate = Type.Unsafe<Date>({ type: 'string', format: 'date-time' })
+
 const plugin = definePlugin(
   {
     name: 'shared-schemas',

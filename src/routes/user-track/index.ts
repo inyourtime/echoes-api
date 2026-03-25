@@ -226,7 +226,7 @@ const route = defineRoute(
         schema: {
           summary: 'Create a user track entry',
           description:
-            'Create a user track entry. Either provide spotifyTrackId (to auto-fetch from Spotify) OR manualTrack (to create manually).',
+            'Create a user track entry. Either provide externalId (to auto-fetch from external source) OR manualTrack (to create manually).',
           body: CreateUserTrackBody,
           response: {
             201: CreateUserTrackResponse,
@@ -237,29 +237,29 @@ const route = defineRoute(
       },
       async (request, reply) => {
         const userId = request.getUser().sub
-        const { spotifyTrackId, manualTrack, note, youtubeUrl, listenedAt, tagIds } = request.body
+        const { externalId, manualTrack, note, youtubeUrl, listenedAt, tagIds } = request.body
 
-        // Validate that exactly one of spotifyTrackId or manualTrack is provided
-        if (spotifyTrackId && manualTrack) {
+        // Validate that exactly one of externalId or manualTrack is provided
+        if (externalId && manualTrack) {
           throw app.httpErrors.badRequest(
-            'Cannot provide both spotifyTrackId and manualTrack. Choose one.',
+            'Cannot provide both externalId and manualTrack. Choose one.',
           )
         }
-        if (!spotifyTrackId && !manualTrack) {
-          throw app.httpErrors.badRequest('Must provide either spotifyTrackId or manualTrack.')
+        if (!externalId && !manualTrack) {
+          throw app.httpErrors.badRequest('Must provide either externalId or manualTrack.')
         }
 
         let trackId: string
 
-        if (spotifyTrackId) {
-          // Try to find existing track by Spotify ID
-          let track = await trackRepository.findBySpotifyId(spotifyTrackId)
+        if (externalId) {
+          // Try to find existing track by external ID
+          let track = await trackRepository.findByExternalId(externalId)
 
           if (!track) {
             // Create new track with Spotify source
             track = await trackRepository.create({
               source: 'spotify',
-              spotifyTrackId,
+              externalId,
               title: 'Unknown Title',
               artist: 'Unknown Artist',
             })
@@ -288,10 +288,6 @@ const route = defineRoute(
               artist: mt.artist,
               titleNormalized,
               artistNormalized,
-              album: mt.album,
-              albumArtUrl: mt.albumArtUrl,
-              genre: mt.genre,
-              durationMs: mt.durationMs,
             })
           }
 
@@ -304,7 +300,7 @@ const route = defineRoute(
           trackId,
           note,
           youtubeUrl,
-          listenedAt: listenedAt ? new Date(listenedAt).toISOString() : new Date().toISOString(),
+          listenedAt: listenedAt ? new Date(listenedAt) : new Date(),
         })
 
         // Attach tags if provided

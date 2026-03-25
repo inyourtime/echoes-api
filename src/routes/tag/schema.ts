@@ -1,4 +1,5 @@
 import Type from 'typebox'
+import { TDate } from '../../plugins/shared-schemas.ts'
 
 // Tag info
 const TagInfo = Type.Object({
@@ -6,7 +7,7 @@ const TagInfo = Type.Object({
   userId: Type.String({ format: 'uuid' }),
   name: Type.String(),
   color: Type.Union([Type.String(), Type.Null()]),
-  createdAt: Type.String({ format: 'date-time' }),
+  createdAt: TDate,
 })
 
 // Create tag
