@@ -1,4 +1,5 @@
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
+import type { User } from '../../db/schema/index.ts'
 import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '../../plugins/token.ts'
 import { defineRoute } from '../../utils/factories.ts'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '../../utils/hash.ts'
@@ -26,6 +27,7 @@ const route = defineRoute(
       tokenService,
       verificationTokenRepository,
       mailerService,
+      oauthAccountRepository,
     } = app
 
     app.post(
@@ -115,7 +117,11 @@ const route = defineRoute(
           throw app.httpErrors.forbidden('Please verify your email before logging in')
         }
 
-        const isPasswordValid = verifyPassword(password, user.passwordHash || '')
+        if (!user.passwordHash) {
+          throw app.httpErrors.unauthorized('Invalid credentials')
+        }
+
+        const isPasswordValid = verifyPassword(password, user.passwordHash)
         if (!isPasswordValid) {
           throw app.httpErrors.unauthorized('Invalid credentials')
         }
@@ -362,23 +368,127 @@ const route = defineRoute(
       },
     )
 
-    // app.get('/callback', { schema: { hide: true } }, async (request, reply) => {
-    //   const { token } = await app.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(request)
+    app.get(
+      '/google/callback',
+      {
+        config: { auth: false },
+        schema: { hide: true },
+      },
+      async (request, reply) => {
+        const { token } = await app.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(request)
 
-    //   const fetchResult = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-    //     headers: {
-    //       Authorization: `Bearer ${token.access_token}`,
-    //     },
-    //   })
+        // Fetch user info from Google
+        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+          },
+        })
 
-    //   if (!fetchResult.ok) {
-    //     reply.send(new Error('Failed to fetch user info'))
-    //     return
-    //   }
+        if (!userInfoResponse.ok) {
+          throw app.httpErrors.internalServerError('Failed to fetch user info from Google')
+        }
 
-    //   const data = await fetchResult.json()
-    //   reply.send(data)
-    // })
+        const googleUser = (await userInfoResponse.json()) as {
+          id: string
+          email: string
+          name?: string
+          picture?: string
+          verified_email?: boolean
+        }
+
+        const emailLower = googleUser.email.toLowerCase()
+
+        // Check if OAuth account already exists
+        const oauthAccount = await oauthAccountRepository.findByProviderAndAccountId(
+          'google',
+          googleUser.id,
+        )
+
+        let user: User
+
+        if (oauthAccount) {
+          // Existing OAuth user - update tokens and get user
+          await oauthAccountRepository.updateTokens(oauthAccount.id, {
+            accessToken: token.access_token,
+            refreshToken: token.refresh_token,
+            tokenExpiresAt: token.expires_at ? new Date(token.expires_at) : undefined,
+          })
+          user = oauthAccount.user
+        } else {
+          // Check if user exists with same email
+          const existingUser = await userRepository.findByEmail(emailLower)
+
+          if (existingUser) {
+            // Link OAuth to existing user
+            user = existingUser
+            await oauthAccountRepository.create({
+              userId: existingUser.id,
+              provider: 'google',
+              providerAccountId: googleUser.id,
+              accessToken: token.access_token,
+              refreshToken: token.refresh_token,
+              tokenExpiresAt: token.expires_at ? new Date(token.expires_at) : undefined,
+            })
+            // Mark email as verified if not already
+            if (!existingUser.emailVerifiedAt && googleUser.verified_email) {
+              await userRepository.verifyEmail(existingUser.id)
+            }
+          } else {
+            // Create new user and OAuth account
+            user = await userRepository.create({
+              email: emailLower,
+              name: googleUser.name || null,
+              avatarUrl: googleUser.picture || null,
+              emailVerifiedAt: googleUser.verified_email ? new Date() : null,
+            })
+
+            await oauthAccountRepository.create({
+              userId: user.id,
+              provider: 'google',
+              providerAccountId: googleUser.id,
+              accessToken: token.access_token,
+              refreshToken: token.refresh_token,
+              tokenExpiresAt: token.expires_at ? new Date(token.expires_at) : undefined,
+            })
+          }
+        }
+
+        if (!user.isActive) {
+          throw app.httpErrors.forbidden('Account disabled')
+        }
+
+        // Issue tokens
+        const family = generateFamily()
+        const expiresAt = slidingExpiresAt(config.jwt.slidingTTLMs)
+
+        const { tokenHash, ...tokenPair } = tokenService.issueTokenPair({
+          user,
+          family,
+        })
+
+        await refreshTokenRepository.createOrUpdate({
+          userId: user.id,
+          family,
+          expiresAt,
+          tokenHash,
+          tokenVersion: user.tokenVersion,
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'] || null,
+          lastUsedAt: new Date(),
+        })
+
+        // Set refresh token cookie and redirect to frontend with access token
+        reply.setCookie('refreshToken', tokenPair.refreshToken, {
+          ...app.getCookieOptions(expiresAt),
+        })
+
+        // Redirect to frontend with access token as fragment (not sent to server)
+        const redirectUrl = new URL(`${config.frontendUrl}/auth/callback`)
+        redirectUrl.hash = `access_token=${tokenPair.accessToken}`
+
+        return reply.redirect(redirectUrl.toString())
+      },
+    )
   },
 )
 
