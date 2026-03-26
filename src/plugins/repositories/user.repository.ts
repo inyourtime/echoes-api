@@ -28,6 +28,10 @@ export class UserRepository {
       where: eq(users.email, email),
     })
   }
+
+  async verifyEmail(id: string) {
+    return db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, id)).returning()
+  }
 }
 
 const plugin = definePlugin(

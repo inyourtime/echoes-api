@@ -1,8 +1,18 @@
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
 import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '../../plugins/token.ts'
 import { defineRoute } from '../../utils/factories.ts'
-import { hashPassword, hashToken, verifyPassword } from '../../utils/hash.ts'
-import { LoginBody, MeResponse, RegisterBody, RegisterResponse, TokenResponse } from './schema.ts'
+import { generateToken, hashPassword, hashToken, verifyPassword } from '../../utils/hash.ts'
+import {
+  LoginBody,
+  MeResponse,
+  RegisterBody,
+  RegisterResponse,
+  ResendVerificationBody,
+  ResendVerificationResponse,
+  TokenResponse,
+  VerifyEmailBody,
+  VerifyEmailResponse,
+} from './schema.ts'
 
 const route = defineRoute(
   {
@@ -10,7 +20,13 @@ const route = defineRoute(
     tags: ['Auth'],
   },
   async (app, { config }) => {
-    const { userRepository, refreshTokenRepository, tokenService } = app
+    const {
+      userRepository,
+      refreshTokenRepository,
+      tokenService,
+      verificationTokenRepository,
+      mailerService,
+    } = app
 
     app.post(
       '/register',
@@ -45,12 +61,26 @@ const route = defineRoute(
           name,
         })
 
+        // Generate and store verification token
+        const { rawToken, hashedToken } = generateToken()
+        await verificationTokenRepository.create({
+          userId: user.id,
+          type: 'email_verification',
+          tokenHash: hashedToken,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        })
+
+        // Send verification email
+        const verificationLink = `${config.frontendUrl}/verify-email?token=${rawToken}`
+        await mailerService.sendVerification(user.email, verificationLink)
+
         return reply.code(201).send({
           user: {
             id: user.id,
             email: user.email,
             name: user.name || '',
           },
+          message: 'Registration successful. Please check your email to verify your account.',
         })
       },
     )
@@ -66,6 +96,7 @@ const route = defineRoute(
           response: {
             200: TokenResponse,
             401: { $ref: 'responses#/properties/unauthorized', description: 'Invalid credentials' },
+            403: { $ref: 'responses#/properties/forbidden', description: 'Email not verified' },
           },
         },
       },
@@ -78,6 +109,10 @@ const route = defineRoute(
 
         if (!user || !user.isActive) {
           throw app.httpErrors.unauthorized('Invalid credentials')
+        }
+
+        if (!user.emailVerifiedAt) {
+          throw app.httpErrors.forbidden('Please verify your email before logging in')
         }
 
         const isPasswordValid = verifyPassword(password, user.passwordHash || '')
@@ -111,6 +146,112 @@ const route = defineRoute(
 
         return reply.send({
           accessToken: tokenPair.accessToken,
+        })
+      },
+    )
+
+    app.post(
+      '/verify-email',
+      {
+        config: { auth: false },
+        schema: {
+          summary: 'Verify email address',
+          description: 'Verify email address using token from email',
+          body: VerifyEmailBody,
+          response: {
+            200: VerifyEmailResponse,
+            400: {
+              $ref: 'responses#/properties/badRequest',
+              description: 'Invalid or expired token',
+            },
+          },
+        },
+      },
+      async (request, reply) => {
+        const { token } = request.body
+
+        const hashedToken = hashToken(token)
+        const verificationRecord = await verificationTokenRepository.findByTokenHash(hashedToken)
+
+        if (!verificationRecord) {
+          throw app.httpErrors.badRequest('Invalid token')
+        }
+
+        if (verificationRecord.usedAt) {
+          throw app.httpErrors.badRequest('Token already used')
+        }
+
+        if (new Date() > verificationRecord.expiresAt) {
+          throw app.httpErrors.badRequest('Token expired')
+        }
+
+        if (verificationRecord.type !== 'email_verification') {
+          throw app.httpErrors.badRequest('Invalid token type')
+        }
+
+        // Mark token as used
+        await verificationTokenRepository.markAsUsed(verificationRecord.id)
+
+        // Verify user email
+        await userRepository.verifyEmail(verificationRecord.userId)
+
+        return reply.send({
+          message: 'Email verified successfully. You can now log in.',
+        })
+      },
+    )
+
+    app.post(
+      '/resend-verification',
+      {
+        config: { auth: false },
+        schema: {
+          summary: 'Resend verification email',
+          description: 'Resend verification email to user',
+          body: ResendVerificationBody,
+          response: {
+            200: ResendVerificationResponse,
+          },
+        },
+      },
+      async (request, reply) => {
+        const { email } = request.body
+        const emailLower = email.toLowerCase()
+
+        const user = await userRepository.findByEmail(emailLower)
+
+        // Always return success to prevent email enumeration
+        if (!user) {
+          return reply.send({
+            message: 'If an account exists, a verification email has been sent.',
+          })
+        }
+
+        // Skip if already verified
+        if (user.emailVerifiedAt) {
+          return reply.send({
+            message: 'If an account exists, a verification email has been sent.',
+          })
+        }
+
+        // Delete any existing unused tokens
+        await verificationTokenRepository.deleteByUserAndType(user.id, 'email_verification')
+
+        // Generate new token
+        const { rawToken, hashedToken } = generateToken()
+        await verificationTokenRepository.create({
+          userId: user.id,
+          type: 'email_verification',
+          tokenHash: hashedToken,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        })
+
+        // Send verification email
+        const verificationLink = `${config.frontendUrl}/verify-email?token=${rawToken}`
+        await mailerService.sendVerification(user.email, verificationLink)
+
+        return reply.send({
+          message: 'If an account exists, a verification email has been sent.',
         })
       },
     )

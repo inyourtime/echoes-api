@@ -27,6 +27,7 @@ export interface IConfig {
     nbfGrace: string // e.g., "10s", "1m"
   }
   enableCookieSecure: boolean
+  frontendUrl: string
 }
 
 function getLoggerConfig(logLevel: string) {
@@ -68,6 +69,7 @@ const schema = Type.Object({
   JWT_SLIDING_TTL_MS: Type.Number({ default: 30 * 24 * 60 * 60 * 1000 }), // 30 days in milliseconds
   JWT_NBF_GRACE: Type.String({ default: '10s' }), // 10 seconds
   ENABLE_COOKIE_SECURE: Type.Boolean({ default: true }),
+  FRONTEND_URL: Type.String({ default: 'http://localhost:3001' }),
 })
 
 function getConfig() {
@@ -88,6 +90,11 @@ function getConfig() {
       bodyLimit: 1048576, // 1MB
       connectionTimeout: 60000, // 1 minute
       genReqId: () => crypto.randomUUID(),
+      ajv: {
+        customOptions: {
+          removeAdditional: 'all',
+        },
+      },
     },
     openapi: {
       openapi: {
@@ -134,6 +141,7 @@ function getConfig() {
       nbfGrace: env.JWT_NBF_GRACE,
     },
     enableCookieSecure: env.ENABLE_COOKIE_SECURE,
+    frontendUrl: env.FRONTEND_URL,
   }
 
   return config

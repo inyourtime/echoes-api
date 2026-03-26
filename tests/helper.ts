@@ -26,4 +26,5 @@ export const mockConfig: IConfig = {
     nbfGrace: undefined as any,
   },
   enableCookieSecure: false,
+  frontendUrl: 'http://localhost:3000',
 }

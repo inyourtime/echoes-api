@@ -12,6 +12,7 @@ export const RegisterResponse = Type.Object({
     email: Type.String(),
     name: Type.String(),
   }),
+  message: Type.String(),
 })
 
 export const LoginBody = Type.Object({
@@ -30,4 +31,20 @@ export const MeResponse = Type.Object({
     name: Type.Union([Type.String(), Type.Null()]),
     avatarUrl: Type.Union([Type.String(), Type.Null()]),
   }),
+})
+
+export const VerifyEmailBody = Type.Object({
+  token: Type.String({ minLength: 1 }),
+})
+
+export const VerifyEmailResponse = Type.Object({
+  message: Type.String(),
+})
+
+export const ResendVerificationBody = Type.Object({
+  email: Type.String({ format: 'email', minLength: 1 }),
+})
+
+export const ResendVerificationResponse = Type.Object({
+  message: Type.String(),
 })
