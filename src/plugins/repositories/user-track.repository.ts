@@ -174,8 +174,9 @@ export class UserTrackRepository {
       }
 
       // 3. Persist if anything changed
-      if (Object.keys(updates).length > 0)
+      if (Object.keys(updates).length > 0) {
         await tx.update(userTracks).set(updates).where(eq(userTracks.id, old.id))
+      }
 
       // 4. Sync tags (all inside tx)
       if (tagIds !== undefined) await this.#syncTags(tx, old, tagIds)
