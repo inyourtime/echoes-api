@@ -1,7 +1,18 @@
-import { and, asc, count, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.ts'
-import { type NewUserTrack, userTracks, userTrackTags } from '../../db/schema/index.ts'
+import {
+  type NewTrack,
+  type NewUserTrack,
+  type Tag,
+  type Track,
+  type Transaction,
+  tracks,
+  type UserTrack,
+  userTracks,
+  userTrackTags,
+} from '../../db/schema/index.ts'
 import { definePlugin } from '../../utils/factories.ts'
+import { normalizeText } from '../../utils/normalize.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -15,6 +26,15 @@ export interface ListUserTracksOptions {
   offset: number
   sort: 'listenedAt' | 'createdAt'
   order: 'asc' | 'desc'
+}
+
+export interface UserTrackWithTrackAndTags extends UserTrack {
+  track: Track
+  userTrackTags: Array<{
+    userTrackId: string
+    tagId: string
+    tag: Tag
+  }>
 }
 
 export class UserTrackRepository {
@@ -103,6 +123,69 @@ export class UserTrackRepository {
 
   async update(id: string, updates: Partial<NewUserTrack>) {
     return (await db.update(userTracks).set(updates).where(eq(userTracks.id, id)).returning())[0]
+  }
+
+  #buildTrackInsert(patch: Partial<NewTrack>, old: Track): NewTrack {
+    const title = patch.title ?? old.title
+    const artist = patch.artist ?? old.artist
+    return {
+      source: 'manual',
+      title,
+      artist,
+      titleNormalized: normalizeText(title),
+      artistNormalized: normalizeText(artist),
+    }
+  }
+
+  async #syncTags(tx: Transaction, old: UserTrackWithTrackAndTags, tagIds: string[]) {
+    const currentTagIds = old.userTrackTags.map((t) => t.tagId)
+    const toAdd = tagIds.filter((id) => !currentTagIds.includes(id))
+    const toRemove = currentTagIds.filter((id) => !tagIds.includes(id))
+
+    if (toAdd.length > 0)
+      await tx.insert(userTrackTags).values(toAdd.map((tagId) => ({ userTrackId: old.id, tagId })))
+
+    if (toRemove.length > 0)
+      await tx
+        .delete(userTrackTags)
+        .where(and(eq(userTrackTags.userTrackId, old.id), inArray(userTrackTags.tagId, toRemove)))
+  }
+
+  async updateTrackAndTags(
+    old: UserTrackWithTrackAndTags,
+    userTrackPatch: Partial<NewUserTrack>,
+    trackPatch: Partial<NewTrack> | undefined,
+    tagIds: string[] | undefined,
+  ) {
+    return db.transaction(async (tx) => {
+      const updates: Partial<NewUserTrack> = {}
+
+      // 1. Upsert track if patch provided
+      if (trackPatch && Object.keys(trackPatch).length > 0) {
+        const [track] = await tx
+          .insert(tracks)
+          .values(this.#buildTrackInsert(trackPatch, old.track))
+          .onConflictDoUpdate({
+            target: [tracks.titleNormalized, tracks.artistNormalized],
+            set: { updatedAt: new Date() },
+          })
+          .returning()
+
+        updates.trackId = track.id
+      }
+
+      // 2. Copy scalar fields from patch
+      for (const [key, value] of Object.entries(userTrackPatch)) {
+        if (value !== undefined) (updates as any)[key] = value
+      }
+
+      // 3. Persist if anything changed
+      if (Object.keys(updates).length > 0)
+        await tx.update(userTracks).set(updates).where(eq(userTracks.id, old.id))
+
+      // 4. Sync tags (all inside tx)
+      if (tagIds !== undefined) await this.#syncTags(tx, old, tagIds)
+    })
   }
 
   async delete(id: string) {

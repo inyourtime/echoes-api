@@ -19,6 +19,7 @@ const plugin = definePlugin(
       routePrefix: '/api/docs',
       logLevel: 'silent',
       configuration: {
+        pageTitle: 'Echoes API',
         theme: 'saturn',
         agent: { disabled: true },
         mcp: { disabled: true },

@@ -1,6 +1,6 @@
 import Type from 'typebox'
-
 import { defineRoute } from '../../utils/factories.ts'
+import { normalizeText } from '../../utils/normalize.ts'
 import {
   CreateUserTrackBody,
   CreateUserTrackResponse,
@@ -17,7 +17,7 @@ const route = defineRoute(
     tags: ['User Track'],
   },
   async (app) => {
-    const { trackRepository, userTrackRepository, userTrackTagRepository, tagRepository } = app
+    const { trackRepository, userTrackRepository } = app
 
     // GET /:id - Get single user track by ID
     app.get(
@@ -81,7 +81,7 @@ const route = defineRoute(
       async (request, reply) => {
         const userId = request.getUser().sub
         const { id } = request.params
-        const { note, youtubeUrl, listenedAt, tagIds } = request.body
+        const { note, youtubeUrl, listenedAt, tagIds, track } = request.body
 
         // Check user track exists and belongs to user
         const userTrack = await userTrackRepository.findById(id)
@@ -92,29 +92,12 @@ const route = defineRoute(
           throw app.httpErrors.notFound('User track not found')
         }
 
-        // Build update object with only provided fields
-        const updates: Record<string, unknown> = {}
-        if (note !== undefined) updates.note = note
-        if (youtubeUrl !== undefined) updates.youtubeUrl = youtubeUrl
-        if (listenedAt !== undefined) updates.listenedAt = new Date(listenedAt).toISOString()
-
-        // Update user track if there are changes
-        if (Object.keys(updates).length > 0) {
-          await userTrackRepository.update(id, updates)
-        }
-
-        // Update tags if provided
-        if (tagIds !== undefined) {
-          // Verify all tags belong to the user
-          for (const tagId of tagIds) {
-            const tag = await tagRepository.findById(tagId)
-            if (!tag || tag.userId !== userId) {
-              throw app.httpErrors.badRequest(`Invalid tag ID: ${tagId}`)
-            }
-          }
-          // Use setTags to efficiently update (adds new, removes old)
-          await userTrackTagRepository.setTags(id, tagIds)
-        }
+        await userTrackRepository.updateTrackAndTags(
+          userTrack,
+          { note, youtubeUrl, listenedAt: listenedAt ? new Date(listenedAt) : undefined },
+          track,
+          tagIds,
+        )
 
         // Fetch updated user track with tags
         const updatedUserTrack = await userTrackRepository.findById(id)
@@ -242,8 +225,8 @@ const route = defineRoute(
 
         const listenedAtDate = listenedAt ? new Date(listenedAt) : new Date()
 
-        const titleNormalized = track.title.toLowerCase().trim()
-        const artistNormalized = track.artist.toLowerCase().trim()
+        const titleNormalized = normalizeText(track.title)
+        const artistNormalized = normalizeText(track.artist)
 
         let existTrack = await trackRepository.findByNormalizedTitleArtist(
           titleNormalized,

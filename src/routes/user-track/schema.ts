@@ -157,6 +157,12 @@ export const GetUserTrackResponse = Type.Object({
 // Update user track request body (all fields optional)
 export const UpdateUserTrackBody = Type.Object(
   {
+    track: Type.Optional(
+      Type.Object({
+        title: Type.Optional(Type.String()),
+        artist: Type.Optional(Type.String()),
+      }),
+    ),
     note: Type.Optional(
       Type.Union([Type.String(), Type.Null()], {
         description: 'Personal note about this track (null to clear)',

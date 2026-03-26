@@ -4,6 +4,7 @@ import {
   customType,
   index,
   integer,
+  type PgTransaction,
   pgEnum,
   pgTable,
   primaryKey,
@@ -358,6 +359,8 @@ export const userTrackTagsRelations = relations(userTrackTags, ({ one }) => ({
 }))
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export type Transaction = PgTransaction<any, any, any>
 
 // User and Auth Types
 export type User = typeof users.$inferSelect
