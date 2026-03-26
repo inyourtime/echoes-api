@@ -1,13 +1,11 @@
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm'
-import { db } from '../../db/index.ts'
+import { db, type InferQueryResult } from '../../db/index.ts'
 import {
   type NewTrack,
   type NewUserTrack,
-  type Tag,
   type Track,
   type Transaction,
   tracks,
-  type UserTrack,
   userTracks,
   userTrackTags,
 } from '../../db/schema/index.ts'
@@ -28,14 +26,10 @@ export interface ListUserTracksOptions {
   order: 'asc' | 'desc'
 }
 
-export interface UserTrackWithTrackAndTags extends UserTrack {
-  track: Track
-  userTrackTags: Array<{
-    userTrackId: string
-    tagId: string
-    tag: Tag
-  }>
-}
+export type UserTrackWithTrackAndTags = InferQueryResult<
+  'userTracks',
+  { with: { track: true; userTrackTags: { with: { tag: true } } } }
+>
 
 export class UserTrackRepository {
   async findById(id: string) {
