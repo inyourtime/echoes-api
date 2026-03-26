@@ -27,7 +27,6 @@ export class TrackRepository {
       where: and(
         eq(tracks.titleNormalized, titleNormalized),
         eq(tracks.artistNormalized, artistNormalized),
-        eq(tracks.source, 'manual'),
       ),
     })
   }
