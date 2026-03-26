@@ -6,7 +6,7 @@ import {
   hashPassword,
   hashToken,
   verifyPassword,
-} from './hash.ts'
+} from '../../src/utils/hash.ts'
 
 test('hashPassword should return salt and hash', () => {
   const result = hashPassword('mypassword')
@@ -102,6 +102,8 @@ test('generateToken should generate unique tokens', () => {
 
 test('generateRefreshToken should generate unique tokens', () => {
   const { refreshToken, hashedToken } = generateRefreshToken()
-  console.log(refreshToken)
-  console.log(hashedToken)
+
+  assert.strictEqual(typeof refreshToken, 'string')
+  assert.strictEqual(typeof hashedToken, 'string')
+  assert.notStrictEqual(refreshToken, hashedToken)
 })

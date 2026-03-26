@@ -4,6 +4,7 @@ import Fastify from 'fastify'
 import tokenPlugin, {
   generateFamily,
   type IssueTokenPairOptions,
+  type RefreshTokenPayload,
   slidingExpiresAt,
   TokenService,
 } from '../../src/plugins/token.ts'
@@ -228,6 +229,35 @@ describe('TokenService', () => {
 
       assert.throws(() => {
         service.verifyRefreshToken(accessToken)
+      })
+    })
+  })
+
+  describe('decodeToken', () => {
+    it('should decode a valid token', () => {
+      const service = new TokenService(mockConfig)
+      const options: IssueTokenPairOptions = {
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          tokenVersion: 1,
+        },
+        family: 'family-uuid-123',
+      }
+
+      const { refreshToken } = service.issueTokenPair(options)
+      const payload = service.decodeToken<RefreshTokenPayload>(refreshToken)
+
+      assert.equal(payload.sub, 'user-123')
+      assert.equal(payload.family, 'family-uuid-123')
+      assert.equal(payload.tokenVersion, 1)
+    })
+
+    it('should throw error for invalid token', () => {
+      const service = new TokenService(mockConfig)
+
+      assert.throws(() => {
+        service.decodeToken('invalid-token')
       })
     })
   })

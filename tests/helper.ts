@@ -9,6 +9,8 @@ export const mockConfig: IConfig = {
     google: {
       clientId: 'test-client-id',
       clientSecret: 'test-client-secret',
+      loginPath: '/auth/google/login',
+      callbackUri: '/auth/google/callback',
     },
   },
   mailer: {
@@ -19,7 +21,7 @@ export const mockConfig: IConfig = {
     refreshTokenSecret: 'test-refresh-secret-key-min-32-bytes-long!',
     accessTokenTTL: '15m',
     slidingTTLMs: 30 * 24 * 60 * 60 * 1000, // 30 days
-    nbfGrace: '10s',
+    nbfGrace: undefined as any,
   },
   enableCookieSecure: false,
 }
