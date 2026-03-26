@@ -4,7 +4,9 @@ export const mockConfig: IConfig = {
   host: 'localhost',
   port: 3000,
   openapi: {} as any,
-  fastifyInit: {},
+  fastifyInit: {
+    logger: true,
+  },
   oauth2: {
     google: {
       clientId: 'test-client-id',
