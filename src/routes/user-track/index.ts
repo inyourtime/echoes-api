@@ -208,8 +208,7 @@ const route = defineRoute(
         config: { auth: true },
         schema: {
           summary: 'Create a user track entry',
-          description:
-            'Create a user track entry. Either provide externalId (to auto-fetch from external source) OR manualTrack (to create manually).',
+          description: 'Create a user track entry',
           body: CreateUserTrackBody,
           response: {
             201: CreateUserTrackResponse,

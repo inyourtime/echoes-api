@@ -36,7 +36,8 @@ const route = defineRoute(
         config: { auth: false },
         schema: {
           summary: 'Register a new user',
-          description: 'Register a new user',
+          description:
+            'Register a new user with email and password. An email verification token will be sent to the user.',
           body: RegisterBody,
           response: {
             201: RegisterResponse,
@@ -94,7 +95,8 @@ const route = defineRoute(
         schema: {
           body: LoginBody,
           summary: 'Login a user',
-          description: 'Login a user',
+          description:
+            'Login a user with email and password. Returns access token and refresh token (via cookie). If email is not verified, returns 403.',
           response: {
             200: TokenResponse,
             401: { $ref: 'responses#/properties/unauthorized', description: 'Invalid credentials' },
@@ -162,7 +164,7 @@ const route = defineRoute(
         config: { auth: false },
         schema: {
           summary: 'Verify email address',
-          description: 'Verify email address using token from email',
+          description: 'Verify email address using token from email. Returns success message.',
           body: VerifyEmailBody,
           response: {
             200: VerifyEmailResponse,
@@ -213,7 +215,8 @@ const route = defineRoute(
         config: { auth: false },
         schema: {
           summary: 'Resend verification email',
-          description: 'Resend verification email to user',
+          description:
+            'Resend verification email to user. Always returns success to prevent email enumeration.',
           body: ResendVerificationBody,
           response: {
             200: ResendVerificationResponse,
@@ -267,7 +270,8 @@ const route = defineRoute(
       {
         config: { auth: true },
         schema: {
-          summary: 'Get current user',
+          summary: 'Get current user information',
+          description: "Retrieve the authenticated user's information",
           response: {
             200: MeResponse,
             404: { $ref: 'responses#/properties/notFound', description: 'User not found' },
@@ -292,6 +296,7 @@ const route = defineRoute(
         config: { auth: false },
         schema: {
           summary: 'Refresh access token',
+          description: 'Generate a new access token using a valid refresh token',
           response: {
             200: TokenResponse,
             401: { $ref: 'responses#/properties/unauthorized', description: 'Unauthorized' },

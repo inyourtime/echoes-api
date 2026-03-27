@@ -11,37 +11,31 @@ const TrackInput = Type.Object(
 )
 
 // Create user track request body - supports both manual and external modes
-export const CreateUserTrackBody = Type.Object(
-  {
-    // Either provide externalId OR manual track info
-    externalId: Type.Optional(
-      Type.String({ description: 'External track ID if source is external' }),
-    ),
-    track: TrackInput,
+export const CreateUserTrackBody = Type.Object({
+  // Either provide externalId OR manual track info
+  externalId: Type.Optional(
+    Type.String({ description: 'External track ID if source is external' }),
+  ),
+  track: TrackInput,
 
-    // User context fields
-    note: Type.Optional(Type.String({ description: 'Personal note about this track' })),
-    youtubeUrl: Type.Optional(
-      Type.String({ format: 'uri', description: 'YouTube URL for this track' }),
-    ),
-    listenedAt: Type.Optional(
-      Type.String({
-        format: 'date-time',
-        description: 'When the user listened to this track (ISO 8601)',
-      }),
-    ),
-    tagIds: Type.Optional(
-      Type.Array(Type.String({ format: 'uuid' }), {
-        maxItems: 10,
-        description: 'Tag IDs to attach to this user track',
-      }),
-    ),
-  },
-  {
-    description:
-      'Create a user track entry. Either provide externalId (to auto-fetch from external source) OR manualTrack (to create manually).',
-  },
-)
+  // User context fields
+  note: Type.Optional(Type.String({ description: 'Personal note about this track' })),
+  youtubeUrl: Type.Optional(
+    Type.String({ format: 'uri', description: 'YouTube URL for this track' }),
+  ),
+  listenedAt: Type.Optional(
+    Type.String({
+      format: 'date-time',
+      description: 'When the user listened to this track (ISO 8601)',
+    }),
+  ),
+  tagIds: Type.Optional(
+    Type.Array(Type.String({ format: 'uuid' }), {
+      maxItems: 10,
+      description: 'Tag IDs to attach to this user track',
+    }),
+  ),
+})
 
 // Tag info
 const TagInfo = Type.Object({
@@ -155,38 +149,35 @@ export const GetUserTrackResponse = Type.Object({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Update user track request body (all fields optional)
-export const UpdateUserTrackBody = Type.Object(
-  {
-    track: Type.Optional(
-      Type.Object({
-        title: Type.Optional(Type.String()),
-        artist: Type.Optional(Type.String()),
-      }),
-    ),
-    note: Type.Optional(
-      Type.Union([Type.String(), Type.Null()], {
-        description: 'Personal note about this track (null to clear)',
-      }),
-    ),
-    youtubeUrl: Type.Optional(
-      Type.Union([Type.String(), Type.Null()], {
-        description: 'YouTube URL for this track (null to clear)',
-      }),
-    ),
-    listenedAt: Type.Optional(
-      Type.String({
-        format: 'date-time',
-        description: 'When the user listened to this track (ISO 8601)',
-      }),
-    ),
-    tagIds: Type.Optional(
-      Type.Array(Type.String({ format: 'uuid' }), {
-        description: 'Replace all tags with these IDs (empty array to clear all)',
-      }),
-    ),
-  },
-  { description: 'Update user track fields. All fields are optional.' },
-)
+export const UpdateUserTrackBody = Type.Object({
+  track: Type.Optional(
+    Type.Object({
+      title: Type.Optional(Type.String()),
+      artist: Type.Optional(Type.String()),
+    }),
+  ),
+  note: Type.Optional(
+    Type.Union([Type.String(), Type.Null()], {
+      description: 'Personal note about this track (null to clear)',
+    }),
+  ),
+  youtubeUrl: Type.Optional(
+    Type.Union([Type.String(), Type.Null()], {
+      description: 'YouTube URL for this track (null to clear)',
+    }),
+  ),
+  listenedAt: Type.Optional(
+    Type.String({
+      format: 'date-time',
+      description: 'When the user listened to this track (ISO 8601)',
+    }),
+  ),
+  tagIds: Type.Optional(
+    Type.Array(Type.String({ format: 'uuid' }), {
+      description: 'Replace all tags with these IDs (empty array to clear all)',
+    }),
+  ),
+})
 
 // Update response (same as get response)
 export const UpdateUserTrackResponse = GetUserTrackResponse
