@@ -1,19 +1,22 @@
 import Type from 'typebox'
 
 export const RegisterBody = Type.Object({
-  email: Type.String({ format: 'email' }),
-  password: Type.String({ minLength: 8 }),
-  name: Type.String({ minLength: 1 }),
+  email: Type.String({ format: 'email', examples: ['inyourtimeguy@gmail.com'] }),
+  password: Type.String({ minLength: 8, examples: ['12345678'] }),
+  name: Type.String({ minLength: 1, examples: ['John Doe'] }),
 })
 
-export const RegisterResponse = Type.Object({
-  user: Type.Object({
-    id: Type.String(),
-    email: Type.String(),
-    name: Type.String(),
-  }),
-  message: Type.String(),
-})
+export const RegisterResponse = Type.Object(
+  {
+    user: Type.Object({
+      id: Type.String(),
+      email: Type.String(),
+      name: Type.String(),
+    }),
+    message: Type.String(),
+  },
+  { description: 'Register response' },
+)
 
 export const LoginBody = Type.Object({
   email: Type.String({ format: 'email', examples: ['inyourtimeguy@gmail.com'] }),
@@ -24,17 +27,20 @@ export const TokenResponse = Type.Object({
   accessToken: Type.String({ examples: ['access_token'] }),
 })
 
-export const MeResponse = Type.Object({
-  user: Type.Object({
-    id: Type.String(),
-    email: Type.String(),
-    name: Type.Union([Type.String(), Type.Null()]),
-    avatarUrl: Type.Union([Type.String(), Type.Null()]),
-  }),
-})
+export const MeResponse = Type.Object(
+  {
+    user: Type.Object({
+      id: Type.String(),
+      email: Type.String(),
+      name: Type.Union([Type.String(), Type.Null()]),
+      avatarUrl: Type.Union([Type.String(), Type.Null()]),
+    }),
+  },
+  { description: 'Get current user response' },
+)
 
 export const VerifyEmailBody = Type.Object({
-  token: Type.String({ minLength: 1 }),
+  token: Type.String({ minLength: 1, examples: ['verification_token'] }),
 })
 
 export const VerifyEmailResponse = Type.Object({
@@ -42,7 +48,7 @@ export const VerifyEmailResponse = Type.Object({
 })
 
 export const ResendVerificationBody = Type.Object({
-  email: Type.String({ format: 'email', minLength: 1 }),
+  email: Type.String({ format: 'email', minLength: 1, examples: ['inyourtimeguy@gmail.com'] }),
 })
 
 export const ResendVerificationResponse = Type.Object({

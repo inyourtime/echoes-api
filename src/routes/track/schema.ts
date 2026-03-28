@@ -1,11 +1,14 @@
 import Type from 'typebox'
+import { OptionalWithDefault } from '../../plugins/shared-schemas.ts'
 
 // Track search query
 export const TrackSearchQuery = Type.Object({
   q: Type.String({ minLength: 1, description: 'Search query for tracks' }),
-  limit: Type.Optional(
-    Type.Number({ default: 10, maximum: 20, description: 'Maximum number of results' }),
-  ),
+  limit: OptionalWithDefault(Type.Number(), {
+    default: 10,
+    maximum: 20,
+    description: 'Maximum number of results',
+  }),
 })
 
 // Track info from Apple Music search

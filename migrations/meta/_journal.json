@@ -15,6 +15,20 @@
       "when": 1774450863411,
       "tag": "0001_smooth_lenny_balinger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774626995010,
+      "tag": "0002_breezy_rick_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774627798601,
+      "tag": "0003_easy_violations",
+      "breakpoints": true
     }
   ]
 }

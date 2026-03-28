@@ -1,7 +1,23 @@
-import Type from 'typebox'
+import Type, {
+  Instantiate,
+  OptionalAdd,
+  OptionsDeferred,
+  type TOptionsConstruct,
+  type TSchema,
+} from 'typebox'
 import { definePlugin } from '../utils/factories.ts'
 
 export const TDate = Type.Unsafe<Date>({ type: 'string', format: 'date-time' })
+
+export function OptionalWithDefault<Type extends TSchema, Options extends TSchema>(
+  type: Type,
+  options: Options,
+): TOptionsConstruct<Type, Options> {
+  if (!('default' in options)) {
+    throw new Error('Options must have a default value')
+  }
+  return Instantiate({}, OptionalAdd(OptionsDeferred(type, options))) as never
+}
 
 const plugin = definePlugin(
   {

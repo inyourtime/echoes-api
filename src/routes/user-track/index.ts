@@ -53,7 +53,7 @@ const route = defineRoute(
         }
 
         return reply.send({
-          userTrack: { ...userTrack, tags: userTrack.userTrackTags.map((t) => t.tag) },
+          userTrack,
         })
       },
     )
@@ -106,10 +106,7 @@ const route = defineRoute(
         }
 
         return reply.send({
-          userTrack: {
-            ...updatedUserTrack,
-            tags: updatedUserTrack.userTrackTags.map((t) => t.tag),
-          },
+          userTrack: updatedUserTrack,
         })
       },
     )
@@ -171,32 +168,21 @@ const route = defineRoute(
         const userId = request.getUser().sub
         const query = request.query
 
-        const limit = query.limit ?? 20
-        const offset = query.offset ?? 0
-        const sort = query.sort ?? 'listenedAt'
-        const order = query.order ?? 'desc'
+        const { limit, cursor, sort, order } = query
 
-        const { items, total } = await userTrackRepository.findManyByUserId({
+        const { items, nextCursor } = await userTrackRepository.findManyByUserId({
           userId,
           limit,
-          offset,
+          cursor,
           sort,
           order,
         })
 
-        // Format the fetched items directly since tags are now included
-        const userTracksWithTags = items.map((ut) => ({
-          ...ut,
-          tags: ut.userTrackTags.map((t) => t.tag),
-        }))
-
         return reply.send({
-          userTracks: userTracksWithTags,
+          userTracks: items,
           meta: {
-            total,
             limit,
-            offset,
-            hasMore: offset + items.length < total,
+            nextCursor,
           },
         })
       },
@@ -276,10 +262,7 @@ const route = defineRoute(
         }
 
         return reply.code(201).send({
-          userTrack: {
-            ...userTrackWithTrack,
-            tags: userTrackWithTrack.userTrackTags.map((t) => t.tag),
-          },
+          userTrack: userTrackWithTrack,
         })
       },
     )

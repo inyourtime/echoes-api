@@ -21,6 +21,8 @@ const tsvector = customType<{ data: string }>({
   },
 })
 
+const msTimestamp = (name: string) => timestamp(name, { precision: 3 })
+
 export const oauthProviderEnum = pgEnum('oauth_provider', ['google', 'github'])
 export const trackSourceEnum = pgEnum('track_source', ['spotify', 'apple-music', 'manual'])
 
@@ -31,7 +33,7 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     email: varchar('email', { length: 255 }).notNull().unique(),
-    emailVerifiedAt: timestamp('email_verified_at'),
+    emailVerifiedAt: msTimestamp('email_verified_at'),
     passwordHash: varchar('password_hash', { length: 255 }),
     name: varchar('name', { length: 255 }),
     avatarUrl: text('avatar_url'),
@@ -39,8 +41,8 @@ export const users = pgTable(
     // bump เพื่อ invalidate refresh token ทั้งหมดของ user ทันที
     // (logout-all, password change, account compromise)
     tokenVersion: integer('token_version').notNull().default(0),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at')
+    createdAt: msTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: msTimestamp('updated_at')
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -61,10 +63,10 @@ export const oauthAccounts = pgTable(
     providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
     accessToken: text('access_token'),
     refreshToken: text('refresh_token'),
-    tokenExpiresAt: timestamp('token_expires_at'),
+    tokenExpiresAt: msTimestamp('token_expires_at'),
     scope: varchar('scope', { length: 512 }),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at')
+    createdAt: msTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: msTimestamp('updated_at')
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -106,11 +108,11 @@ export const refreshTokens = pgTable(
     // ถ้า users.tokenVersion > นี้ → token ถูก invalidate แล้ว
     tokenVersion: integer('token_version').notNull().default(0),
     // sliding expiry: เลื่อนออกทุก rotate → user ที่ active ไม่โดน logout
-    expiresAt: timestamp('expires_at').notNull(),
+    expiresAt: msTimestamp('expires_at').notNull(),
     ipAddress: varchar('ip_address', { length: 45 }),
     userAgent: text('user_agent'),
-    lastUsedAt: timestamp('last_used_at').notNull().defaultNow(),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
+    lastUsedAt: msTimestamp('last_used_at').notNull().defaultNow(),
+    createdAt: msTimestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('refresh_tokens_family_idx').on(t.family),
@@ -138,9 +140,9 @@ export const verificationTokens = pgTable(
     type: verificationTokenTypeEnum('type').notNull(),
     // store SHA256(token)
     tokenHash: varchar('token_hash', { length: 64 }).notNull(),
-    expiresAt: timestamp('expires_at').notNull(),
-    usedAt: timestamp('used_at'),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
+    expiresAt: msTimestamp('expires_at').notNull(),
+    usedAt: msTimestamp('used_at'),
+    createdAt: msTimestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('verification_tokens_hash_idx').on(t.tokenHash),
@@ -186,8 +188,8 @@ export const tracks = pgTable(
     `,
     ),
 
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at')
+    createdAt: msTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: msTimestamp('updated_at')
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -235,10 +237,10 @@ export const userTracks = pgTable(
 
     // วันที่ user ระบุว่า "ฟังครั้งแรก" (ตั้งเองได้ ≠ createdAt)
     // เช่น บันทึกวันนี้ แต่ระบุว่าฟังตอนไปญี่ปุ่นปีที่แล้ว
-    listenedAt: timestamp('listened_at').notNull().defaultNow(),
+    listenedAt: msTimestamp('listened_at').notNull().defaultNow(),
 
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at')
+    createdAt: msTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: msTimestamp('updated_at')
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -266,7 +268,7 @@ export const tags = pgTable(
     name: varchar('name', { length: 100 }).notNull(), // "sad", "study", "coding"
     color: varchar('color', { length: 7 }), // hex เช่น "#FF5733"
 
-    createdAt: timestamp('created_at').notNull().defaultNow(),
+    createdAt: msTimestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
     // ชื่อ tag unique ต่อ user (คนละคนมี #study ได้)

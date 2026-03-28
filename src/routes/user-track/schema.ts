@@ -1,5 +1,5 @@
 import Type from 'typebox'
-import { TDate } from '../../plugins/shared-schemas.ts'
+import { OptionalWithDefault, TDate } from '../../plugins/shared-schemas.ts'
 
 // Manual track input (when not using externalId)
 const TrackInput = Type.Object(
@@ -49,11 +49,7 @@ const TagInfo = Type.Object({
 // Track info in response
 const TrackInfo = Type.Object({
   id: Type.String({ format: 'uuid' }),
-  source: Type.Union([
-    Type.Literal('spotify'),
-    Type.Literal('manual'),
-    Type.Literal('apple-music'),
-  ]),
+  source: Type.Enum(['spotify', 'manual', 'apple-music']),
   externalId: Type.Union([Type.String(), Type.Null()]),
   title: Type.String(),
   artist: Type.String(),
@@ -90,50 +86,45 @@ export const CreateUserTrackResponse = Type.Object({
 // Query parameters for listing user tracks
 export const ListUserTracksQuery = Type.Object(
   {
-    limit: Type.Optional(
-      Type.Integer({
-        default: 20,
-        minimum: 1,
-        maximum: 100,
-        description: 'Number of items to return per page',
+    limit: OptionalWithDefault(Type.Integer(), {
+      default: 20,
+      minimum: 1,
+      maximum: 100,
+      description: 'Number of items to return per page',
+    }),
+    cursor: Type.Optional(
+      Type.String({
+        description: 'Cursor for pagination',
       }),
     ),
-    offset: Type.Optional(
-      Type.Integer({
-        default: 0,
-        minimum: 0,
-        description: 'Number of items to skip',
-      }),
-    ),
-    sort: Type.Optional(
-      Type.Union([Type.Literal('listenedAt'), Type.Literal('createdAt')], {
-        default: 'listenedAt',
-        description: 'Field to sort by',
-      }),
-    ),
-    order: Type.Optional(
-      Type.Union([Type.Literal('asc'), Type.Literal('desc')], {
-        default: 'desc',
-        description: 'Sort order',
-      }),
-    ),
+    sort: OptionalWithDefault(Type.Enum(['listenedAt', 'createdAt']), {
+      default: 'listenedAt',
+      description: 'Field to sort by',
+    }),
+    order: OptionalWithDefault(Type.Enum(['asc', 'desc']), {
+      default: 'desc',
+      description: 'Sort order',
+    }),
   },
-  { description: 'Query parameters for paginated user track list' },
+  { description: 'Query parameters for cursor-based paginated user track list' },
 )
 
-// Pagination metadata
+// Cursor pagination metadata
 const PaginationMeta = Type.Object({
-  total: Type.Integer({ description: 'Total number of items' }),
   limit: Type.Integer({ description: 'Items per page' }),
-  offset: Type.Integer({ description: 'Current offset' }),
-  hasMore: Type.Boolean({ description: 'Whether there are more items' }),
+  nextCursor: Type.Union([Type.String(), Type.Null()], {
+    description: 'Cursor for the next page (null if no more items)',
+  }),
 })
 
 // List response with pagination
-export const ListUserTracksResponse = Type.Object({
-  userTracks: Type.Array(UserTrackWithTrackAndTags),
-  meta: PaginationMeta,
-})
+export const ListUserTracksResponse = Type.Object(
+  {
+    userTracks: Type.Array(UserTrackWithTrackAndTags),
+    meta: PaginationMeta,
+  },
+  { description: 'Paginated list of user tracks' },
+)
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET SINGLE USER TRACK SCHEMAS

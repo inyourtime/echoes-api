@@ -1,10 +1,12 @@
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, inArray, lt, or, type SQL, sql } from 'drizzle-orm'
 import { db, type InferQueryResult } from '../../db/index.ts'
 import {
   type NewTrack,
   type NewUserTrack,
+  type Tag,
   type Track,
   type Transaction,
+  tags,
   tracks,
   userTracks,
   userTrackTags,
@@ -21,19 +23,40 @@ declare module 'fastify' {
 export interface ListUserTracksOptions {
   userId: string
   limit: number
-  offset: number
+  cursor?: string | null // cursor-based pagination (listenedAt_timestamp:id)
   sort: 'listenedAt' | 'createdAt'
   order: 'asc' | 'desc'
 }
 
-export type UserTrackWithTrackAndTags = InferQueryResult<
-  'userTracks',
-  { with: { track: true; userTrackTags: { with: { tag: true } } } }
->
+export interface UserTrackWithTrackAndTags
+  extends InferQueryResult<'userTracks', { with: { track: true } }> {
+  tags: Array<Tag>
+}
 
 export class UserTrackRepository {
+  #encodeCursor(timestamp: Date, id: string): string {
+    const raw = `${timestamp.toISOString()}|${id}`
+    return Buffer.from(raw).toString('base64url')
+  }
+
+  #decodeCursor(cursor: string): [Date, string] | null {
+    try {
+      const raw = Buffer.from(cursor, 'base64url').toString('utf-8')
+      const parts = raw.split('|')
+
+      if (parts.length !== 2) return null
+
+      const [timestamp, id] = parts
+      if (!timestamp || !id) return null
+
+      return [new Date(timestamp), id]
+    } catch {
+      return null
+    }
+  }
+
   async findById(id: string) {
-    return db.query.userTracks.findFirst({
+    const result = await db.query.userTracks.findFirst({
       where: eq(userTracks.id, id),
       with: {
         track: true,
@@ -44,40 +67,93 @@ export class UserTrackRepository {
         },
       },
     })
+
+    return result
+      ? {
+          ...result,
+          tags: result.userTrackTags.map((t) => t.tag),
+        }
+      : undefined
   }
 
-  async findManyByUserId(options: ListUserTracksOptions) {
-    const { userId, limit, offset, sort, order } = options
+  // No change needed to decodeCursor
 
-    // Build order by clause
+  async findManyByUserId(options: ListUserTracksOptions): Promise<{
+    items: UserTrackWithTrackAndTags[]
+    nextCursor: string | null
+  }> {
+    const { userId, limit, cursor, sort, order } = options
+
     const sortColumn = sort === 'listenedAt' ? userTracks.listenedAt : userTracks.createdAt
     const orderFn = order === 'desc' ? desc : asc
+    const cursorFn = order === 'desc' ? lt : gt
 
-    // Get total count
-    const [countResult] = await db
-      .select({ count: count() })
+    let cursorCondition: SQL<unknown> | undefined
+    if (cursor) {
+      const decoded = this.#decodeCursor(cursor)
+      if (decoded) {
+        const [cursorTimestamp, cursorId] = decoded
+        cursorCondition = or(
+          cursorFn(sortColumn, cursorTimestamp),
+          and(eq(sortColumn, cursorTimestamp), cursorFn(userTracks.id, cursorId)),
+        )
+      }
+    }
+
+    const whereConditions: (SQL<unknown> | undefined)[] = [eq(userTracks.userId, userId)]
+    if (cursorCondition) whereConditions.push(cursorCondition)
+
+    const pagedUserTracks = db
+      .select()
       .from(userTracks)
-      .where(eq(userTracks.userId, userId))
+      .where(and(...whereConditions))
+      .limit(limit + 1)
+      .orderBy(orderFn(sortColumn), orderFn(userTracks.id))
+      .as('paged_user_tracks')
 
-    // Get paginated items
-    const items = await db.query.userTracks.findMany({
-      where: eq(userTracks.userId, userId),
-      orderBy: orderFn(sortColumn),
-      limit,
-      offset,
-      with: {
-        track: true,
-        userTrackTags: {
-          with: {
-            tag: true,
-          },
-        },
-      },
-    })
+    const pagedSortColumn =
+      sort === 'listenedAt' ? pagedUserTracks.listenedAt : pagedUserTracks.createdAt
+
+    const rows = await db
+      .select()
+      .from(pagedUserTracks)
+      .innerJoin(tracks, eq(pagedUserTracks.trackId, tracks.id))
+      .leftJoin(userTrackTags, eq(pagedUserTracks.id, userTrackTags.userTrackId))
+      .leftJoin(tags, eq(userTrackTags.tagId, tags.id))
+      .orderBy(orderFn(pagedSortColumn), orderFn(pagedUserTracks.id))
+
+    // group by userTrack id
+    const map = new Map<string, UserTrackWithTrackAndTags>()
+    for (const row of rows) {
+      if (!map.has(row.paged_user_tracks.id)) {
+        map.set(row.paged_user_tracks.id, {
+          ...row.paged_user_tracks,
+          track: row.tracks,
+          tags: [],
+        })
+      }
+      if (row.tags) {
+        map.get(row.paged_user_tracks.id)!.tags.push(row.tags)
+      }
+    }
+
+    const items = [...map.values()]
+
+    const hasNextPage = items.length > limit
+    if (hasNextPage) items.pop() // remove the extra item in place
+
+    const lastItem = items.at(-1)
+    const nextCursor =
+      hasNextPage && lastItem
+        ? this.#encodeCursor(
+            sort === 'listenedAt' ? lastItem.listenedAt : lastItem.createdAt,
+            lastItem.id,
+          )
+        : null
 
     return {
       items,
-      total: countResult.count,
+      nextCursor,
     }
   }
 
@@ -132,7 +208,7 @@ export class UserTrackRepository {
   }
 
   async #syncTags(tx: Transaction, old: UserTrackWithTrackAndTags, tagIds: string[]) {
-    const currentTagIds = old.userTrackTags.map((t) => t.tagId)
+    const currentTagIds = old.tags.map((t) => t.id)
     const toAdd = tagIds.filter((id) => !currentTagIds.includes(id))
     const toRemove = currentTagIds.filter((id) => !tagIds.includes(id))
 

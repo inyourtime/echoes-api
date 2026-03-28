@@ -34,7 +34,7 @@ const route = defineRoute(
         },
       },
       async (request, reply) => {
-        const { q, limit = 10 } = request.query
+        const { q, limit } = request.query
 
         // Build iTunes API URL
         const params = new URLSearchParams({

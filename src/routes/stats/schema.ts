@@ -1,4 +1,5 @@
 import Type from 'typebox'
+import { OptionalWithDefault } from '../../plugins/shared-schemas.ts'
 
 // Top Artists
 export const TopArtistItem = Type.Object({
@@ -7,7 +8,12 @@ export const TopArtistItem = Type.Object({
 })
 
 export const TopArtistsQuery = Type.Object({
-  limit: Type.Optional(Type.Integer({ default: 10, minimum: 1, maximum: 50, description: 'Number of top artists to return' })),
+  limit: OptionalWithDefault(Type.Integer(), {
+    default: 10,
+    minimum: 1,
+    maximum: 50,
+    description: 'Number of top artists to return',
+  }),
 })
 
 export const TopArtistsResponse = Type.Object({
@@ -21,7 +27,12 @@ export const MonthlyActivityItem = Type.Object({
 })
 
 export const MonthlyActivityQuery = Type.Object({
-  months: Type.Optional(Type.Integer({ default: 12, minimum: 1, maximum: 24, description: 'Number of months to look back' })),
+  months: OptionalWithDefault(Type.Integer(), {
+    default: 12,
+    minimum: 1,
+    maximum: 24,
+    description: 'Number of months to look back',
+  }),
 })
 
 export const MonthlyActivityResponse = Type.Object({
