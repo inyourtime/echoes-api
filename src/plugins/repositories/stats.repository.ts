@@ -38,13 +38,14 @@ export class StatsRepository {
   async getTopArtists(userId: string, limit: number = 10): Promise<TopArtist[]> {
     const results = await db
       .select({
-        artist: tracks.artist,
+        artist: sql<string>`min(${tracks.artist})`,
+        artistNormalized: tracks.artistNormalized,
         count: count(),
       })
       .from(userTracks)
       .innerJoin(tracks, eq(userTracks.trackId, tracks.id))
       .where(eq(userTracks.userId, userId))
-      .groupBy(tracks.artist)
+      .groupBy(tracks.artistNormalized)
       .orderBy(desc(count()))
       .limit(limit)
 

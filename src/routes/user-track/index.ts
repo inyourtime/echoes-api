@@ -166,22 +166,17 @@ const route = defineRoute(
       },
       async (request, reply) => {
         const userId = request.getUser().sub
-        const query = request.query
-
-        const { limit, cursor, sort, order } = query
+        const { query } = request
 
         const { items, nextCursor } = await userTrackRepository.findManyByUserId({
           userId,
-          limit,
-          cursor,
-          sort,
-          order,
+          ...query,
         })
 
         return reply.send({
           userTracks: items,
           meta: {
-            limit,
+            limit: query.limit,
             nextCursor,
           },
         })

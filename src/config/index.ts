@@ -95,6 +95,7 @@ function getConfig() {
           removeAdditional: 'all',
         },
       },
+      // disableRequestLogging: true,
     },
     openapi: {
       openapi: {

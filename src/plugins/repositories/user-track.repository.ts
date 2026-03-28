@@ -26,6 +26,7 @@ export interface ListUserTracksOptions {
   cursor?: string | null // cursor-based pagination (listenedAt_timestamp:id)
   sort: 'listenedAt' | 'createdAt'
   order: 'asc' | 'desc'
+  search?: string
 }
 
 export interface UserTrackWithTrackAndTags
@@ -76,13 +77,20 @@ export class UserTrackRepository {
       : undefined
   }
 
-  // No change needed to decodeCursor
+  #buildTsQuery(search: string) {
+    const words = search.toLowerCase().split(' ')
+
+    const andQuery = words.map((w) => `${w}:*`).join(' & ')
+    const orQuery = words.map((w) => `${w}:*`).join(' | ')
+
+    return { andQuery, orQuery }
+  }
 
   async findManyByUserId(options: ListUserTracksOptions): Promise<{
     items: UserTrackWithTrackAndTags[]
     nextCursor: string | null
   }> {
-    const { userId, limit, cursor, sort, order } = options
+    const { userId, limit, cursor, sort, order, search } = options
 
     const sortColumn = sort === 'listenedAt' ? userTracks.listenedAt : userTracks.createdAt
     const orderFn = order === 'desc' ? desc : asc
@@ -103,44 +111,91 @@ export class UserTrackRepository {
     const whereConditions: (SQL<unknown> | undefined)[] = [eq(userTracks.userId, userId)]
     if (cursorCondition) whereConditions.push(cursorCondition)
 
-    const pagedUserTracks = db
-      .select()
+    let andQuery: string | undefined
+    let orQuery: string | undefined
+
+    const normalizedSearch = search?.toLowerCase()
+
+    if (search) {
+      const built = this.#buildTsQuery(search)
+      andQuery = built.andQuery
+      orQuery = built.orQuery
+    }
+
+    if (search && orQuery) {
+      whereConditions.push(
+        sql`
+          ${tracks.search} @@ to_tsquery('simple', ${orQuery})
+        `,
+      )
+    }
+
+    const rankExpr =
+      search && andQuery && orQuery
+        ? sql`
+        ts_rank(${tracks.search}, to_tsquery('simple', ${andQuery})) * 2 +
+        ts_rank(${tracks.search}, to_tsquery('simple', ${orQuery})) +
+
+        -- exact match boost
+        CASE
+          WHEN ${tracks.artistNormalized} = ${normalizedSearch} THEN 3
+          ELSE 0
+        END
+      `
+        : sql`0`
+
+    // Step 1: fetch paged IDs with tracks joined so we can filter/sort on track fields
+    const pagedIds = await db
+      .select({
+        id: userTracks.id,
+        rank: rankExpr,
+      })
       .from(userTracks)
+      .innerJoin(tracks, eq(userTracks.trackId, tracks.id)) // 👈 joined here
       .where(and(...whereConditions))
+      .orderBy((t) => {
+        return [...(search ? [desc(t.rank)] : []), orderFn(sortColumn), orderFn(userTracks.id)]
+      })
       .limit(limit + 1)
-      .orderBy(orderFn(sortColumn), orderFn(userTracks.id))
-      .as('paged_user_tracks')
 
-    const pagedSortColumn =
-      sort === 'listenedAt' ? pagedUserTracks.listenedAt : pagedUserTracks.createdAt
+    if (pagedIds.length === 0) {
+      return { items: [], nextCursor: null }
+    }
 
+    const hasNextPage = pagedIds.length > limit
+    if (hasNextPage) pagedIds.pop()
+    const ids = pagedIds.map((r) => r.id)
+
+    // Step 2: fetch full data for those IDs with tags joined
     const rows = await db
-      .select()
-      .from(pagedUserTracks)
-      .innerJoin(tracks, eq(pagedUserTracks.trackId, tracks.id))
-      .leftJoin(userTrackTags, eq(pagedUserTracks.id, userTrackTags.userTrackId))
+      .select({
+        userTrack: userTracks,
+        track: tracks,
+        tag: tags,
+      })
+      .from(userTracks)
+      .innerJoin(tracks, eq(userTracks.trackId, tracks.id))
+      .leftJoin(userTrackTags, eq(userTracks.id, userTrackTags.userTrackId))
       .leftJoin(tags, eq(userTrackTags.tagId, tags.id))
-      .orderBy(orderFn(pagedSortColumn), orderFn(pagedUserTracks.id))
+      .where(inArray(userTracks.id, ids))
 
-    // group by userTrack id
+    // Step 3: group by userTrack id
     const map = new Map<string, UserTrackWithTrackAndTags>()
     for (const row of rows) {
-      if (!map.has(row.paged_user_tracks.id)) {
-        map.set(row.paged_user_tracks.id, {
-          ...row.paged_user_tracks,
-          track: row.tracks,
+      if (!map.has(row.userTrack.id)) {
+        map.set(row.userTrack.id, {
+          ...row.userTrack,
+          track: row.track,
           tags: [],
         })
       }
-      if (row.tags) {
-        map.get(row.paged_user_tracks.id)!.tags.push(row.tags)
+      if (row.tag) {
+        map.get(row.userTrack.id)!.tags.push(row.tag)
       }
     }
 
-    const items = [...map.values()]
-
-    const hasNextPage = items.length > limit
-    if (hasNextPage) items.pop() // remove the extra item in place
+    // Preserve original sort order from step 1
+    const items = ids.map((id) => map.get(id)!).filter(Boolean)
 
     const lastItem = items.at(-1)
     const nextCursor =

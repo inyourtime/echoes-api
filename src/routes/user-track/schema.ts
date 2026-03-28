@@ -105,6 +105,11 @@ export const ListUserTracksQuery = Type.Object(
       default: 'desc',
       description: 'Sort order',
     }),
+    search: Type.Optional(
+      Type.String({
+        description: 'Full-text search across track title and artist',
+      }),
+    ),
   },
   { description: 'Query parameters for cursor-based paginated user track list' },
 )
