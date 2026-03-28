@@ -109,6 +109,22 @@ function getConfig() {
             name: 'Auth',
             description: 'Authentication endpoints',
           },
+          {
+            name: 'User Track',
+            description: 'User track endpoints',
+          },
+          {
+            name: 'Stats',
+            description: 'Statistics endpoints',
+          },
+          {
+            name: 'Tag',
+            description: 'Tag endpoints',
+          },
+          {
+            name: 'Track',
+            description: 'Track endpoints',
+          },
         ],
         components: {
           securitySchemes: {
