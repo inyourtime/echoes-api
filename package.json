@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "node --env-file=.env --watch src/index.ts",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "test": "npm run build && node --experimental-test-module-mocks --test",
     "coverage": "npm run build && node --experimental-test-module-mocks --experimental-test-coverage --test",
     "start": "npm run build && node --env-file=.env dist/index.js",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
     "db:migrate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:dev": "drizzle-kit studio",

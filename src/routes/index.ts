@@ -1,4 +1,4 @@
-import { defineRoute } from "../utils/factories.ts"
+import { defineRoute } from '../utils/factories.ts'
 
 const route = defineRoute(
   {

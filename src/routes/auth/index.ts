@@ -111,7 +111,7 @@ const route = defineRoute(
 
         const user = await app.userRepository.findByEmail(emailLower)
 
-        if (!user || !user.isActive) {
+        if (!user?.isActive) {
           throw app.httpErrors.unauthorized('Invalid credentials')
         }
 

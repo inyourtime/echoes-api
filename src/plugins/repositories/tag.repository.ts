@@ -38,9 +38,7 @@ export class TagRepository {
   }
 
   async update(id: string, updates: Partial<NewTag>) {
-    return (
-      await db.update(tags).set(updates).where(eq(tags.id, id)).returning()
-    )[0]
+    return (await db.update(tags).set(updates).where(eq(tags.id, id)).returning())[0]
   }
 
   async delete(id: string) {
@@ -49,11 +47,7 @@ export class TagRepository {
 
   async existsOtherWithName(userId: string, name: string, excludeId: string) {
     const result = await db.query.tags.findFirst({
-      where: and(
-        eq(tags.userId, userId),
-        eq(tags.name, name),
-        ne(tags.id, excludeId),
-      ),
+      where: and(eq(tags.userId, userId), eq(tags.name, name), ne(tags.id, excludeId)),
     })
     return !!result
   }
