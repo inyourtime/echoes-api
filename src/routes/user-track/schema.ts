@@ -152,10 +152,17 @@ export const SearchUserTracksQuery = Type.Object(
       default: 'desc',
       description: 'Sort order',
     }),
-    search: Type.String({
-      minLength: 1,
-      description: 'Full-text search across track title and artist',
-    }),
+    search: Type.Optional(
+      Type.String({
+        minLength: 1,
+        description: 'Full-text search across track title and artist',
+      }),
+    ),
+    tagIds: Type.Optional(
+      Type.Array(Type.String({ format: 'uuid' }), {
+        description: 'Filter by tag IDs (user track must have ALL specified tags)',
+      }),
+    ),
   },
   { description: 'Query parameters for searching user tracks' },
 )

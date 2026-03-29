@@ -29,7 +29,8 @@ export interface ListUserTracksOptions {
 }
 
 export interface SearchUserTracksOptions extends ListUserTracksOptions {
-  search: string
+  search?: string
+  tagIds?: string[]
 }
 
 export interface UserTrackWithTrackAndTags
@@ -89,27 +90,61 @@ export class UserTrackRepository {
     return { andQuery, orQuery }
   }
 
+  #buildSortAndOrder(sort: 'listenedAt' | 'createdAt', order: 'asc' | 'desc') {
+    const sortColumn = sort === 'listenedAt' ? userTracks.listenedAt : userTracks.createdAt
+    const orderFn = order === 'desc' ? desc : asc
+    const cursorFn = order === 'desc' ? lt : gt
+    return { sortColumn, orderFn, cursorFn }
+  }
+
+  #buildCursorCondition(
+    cursor: string | null | undefined,
+    sortColumn: typeof userTracks.listenedAt | typeof userTracks.createdAt,
+    cursorFn: typeof lt | typeof gt,
+  ): SQL<unknown> | undefined {
+    if (!cursor) return undefined
+    const decoded = this.#decodeCursor(cursor)
+    if (!decoded) return undefined
+    const [cursorTimestamp, cursorId] = decoded
+    return or(
+      cursorFn(sortColumn, cursorTimestamp),
+      and(eq(sortColumn, cursorTimestamp), cursorFn(userTracks.id, cursorId)),
+    )
+  }
+
+  #encodeNextCursor(
+    items: UserTrackWithTrackAndTags[],
+    hasNextPage: boolean,
+    sort: 'listenedAt' | 'createdAt',
+  ): string | null {
+    if (!hasNextPage) return null
+    const lastItem = items.at(-1)
+    if (!lastItem) return null
+    return this.#encodeCursor(
+      sort === 'listenedAt' ? lastItem.listenedAt : lastItem.createdAt,
+      lastItem.id,
+    )
+  }
+
+  #mapQueryResultToItems(
+    rows: InferQueryResult<
+      'userTracks',
+      { with: { track: true; userTrackTags: { with: { tag: true } } } }
+    >[],
+  ): UserTrackWithTrackAndTags[] {
+    return rows.map((row) => ({
+      ...row,
+      tags: row.userTrackTags.map(({ tag }) => tag),
+    }))
+  }
+
   async findManyByUserId(options: ListUserTracksOptions): Promise<{
     items: UserTrackWithTrackAndTags[]
     nextCursor: string | null
   }> {
     const { userId, limit, cursor, sort, order } = options
-
-    const sortColumn = sort === 'listenedAt' ? userTracks.listenedAt : userTracks.createdAt
-    const orderFn = order === 'desc' ? desc : asc
-    const cursorFn = order === 'desc' ? lt : gt
-
-    let cursorCondition: SQL<unknown> | undefined
-    if (cursor) {
-      const decoded = this.#decodeCursor(cursor)
-      if (decoded) {
-        const [cursorTimestamp, cursorId] = decoded
-        cursorCondition = or(
-          cursorFn(sortColumn, cursorTimestamp),
-          and(eq(sortColumn, cursorTimestamp), cursorFn(userTracks.id, cursorId)),
-        )
-      }
-    }
+    const { sortColumn, orderFn, cursorFn } = this.#buildSortAndOrder(sort, order)
+    const cursorCondition = this.#buildCursorCondition(cursor, sortColumn, cursorFn)
 
     const whereConditions: (SQL<unknown> | undefined)[] = [eq(userTracks.userId, userId)]
     if (cursorCondition) whereConditions.push(cursorCondition)
@@ -131,48 +166,33 @@ export class UserTrackRepository {
     const hasNextPage = rows.length > limit
     if (hasNextPage) rows.pop()
 
-    const lastItem = rows.at(-1)
-    const nextCursor =
-      hasNextPage && lastItem
-        ? this.#encodeCursor(
-            sort === 'listenedAt' ? lastItem.listenedAt : lastItem.createdAt,
-            lastItem.id,
-          )
-        : null
+    const items = this.#mapQueryResultToItems(rows)
+    const nextCursor = this.#encodeNextCursor(items, hasNextPage, sort)
 
-    return {
-      items: rows.map((row) => ({
-        ...row,
-        tags: row.userTrackTags.map(({ tag }) => tag),
-      })),
-      nextCursor,
-    }
+    return { items, nextCursor }
   }
 
   async searchByUserId(options: SearchUserTracksOptions): Promise<{
     items: UserTrackWithTrackAndTags[]
     nextCursor: string | null
   }> {
-    const { userId, limit, cursor, sort, order, search } = options
-
-    const sortColumn = sort === 'listenedAt' ? userTracks.listenedAt : userTracks.createdAt
-    const orderFn = order === 'desc' ? desc : asc
-    const cursorFn = order === 'desc' ? lt : gt
-
-    let cursorCondition: SQL<unknown> | undefined
-    if (cursor) {
-      const decoded = this.#decodeCursor(cursor)
-      if (decoded) {
-        const [cursorTimestamp, cursorId] = decoded
-        cursorCondition = or(
-          cursorFn(sortColumn, cursorTimestamp),
-          and(eq(sortColumn, cursorTimestamp), cursorFn(userTracks.id, cursorId)),
-        )
-      }
-    }
+    const { userId, limit, cursor, sort, order, search, tagIds } = options
+    const { sortColumn, orderFn, cursorFn } = this.#buildSortAndOrder(sort, order)
+    const cursorCondition = this.#buildCursorCondition(cursor, sortColumn, cursorFn)
 
     const whereConditions: (SQL<unknown> | undefined)[] = [eq(userTracks.userId, userId)]
     if (cursorCondition) whereConditions.push(cursorCondition)
+
+    // Tag filter: user track must have AT LEAST ONE of the specified tags
+    if (tagIds && tagIds.length > 0) {
+      whereConditions.push(
+        sql`${userTracks.id} IN (
+          SELECT DISTINCT ${userTrackTags.userTrackId}
+          FROM ${userTrackTags}
+          WHERE ${inArray(userTrackTags.tagId, tagIds)}
+        )`,
+      )
+    }
 
     let andQuery: string | undefined
     let orQuery: string | undefined
@@ -193,19 +213,36 @@ export class UserTrackRepository {
       )
     }
 
-    const rankExpr =
-      search && andQuery && orQuery
-        ? sql`
-        ts_rank(${tracks.search}, to_tsquery('simple', ${andQuery})) * 2 +
-        ts_rank(${tracks.search}, to_tsquery('simple', ${orQuery})) +
-
-        -- exact match boost
-        CASE
-          WHEN ${tracks.artistNormalized} = ${normalizedSearch} THEN 3
-          ELSE 0
-        END
-      `
-        : sql`0`
+    const rankExpr = sql`
+      COALESCE(
+        ${
+          search && andQuery && orQuery
+            ? sql`
+          ts_rank(${tracks.search}, to_tsquery('simple', ${andQuery})) * 2 +
+          ts_rank(${tracks.search}, to_tsquery('simple', ${orQuery})) +
+          CASE
+            WHEN ${tracks.artistNormalized} = ${normalizedSearch} THEN 3
+            ELSE 0
+          END
+        `
+            : sql`0`
+        },
+        0
+      ) + 
+      COALESCE(
+        ${
+          tagIds && tagIds.length > 0
+            ? sql`(
+          SELECT COUNT(*)::float
+          FROM ${userTrackTags}
+          WHERE ${userTrackTags.userTrackId} = ${userTracks.id}
+            AND ${inArray(userTrackTags.tagId, tagIds)}
+        )`
+            : sql`0`
+        },
+        0
+      )
+    `
 
     // Step 1: fetch paged IDs with tracks joined so we can filter/sort on track fields
     const pagedIds = await db
@@ -217,7 +254,7 @@ export class UserTrackRepository {
       .innerJoin(tracks, eq(userTracks.trackId, tracks.id)) // 👈 joined here
       .where(and(...whereConditions))
       .orderBy((t) => {
-        return [...(search ? [desc(t.rank)] : []), orderFn(sortColumn), orderFn(userTracks.id)]
+        return [desc(t.rank), orderFn(sortColumn), orderFn(userTracks.id)]
       })
       .limit(limit + 1)
 
@@ -260,19 +297,9 @@ export class UserTrackRepository {
     // Preserve original sort order from step 1
     const items = ids.map((id) => map.get(id)!).filter(Boolean)
 
-    const lastItem = items.at(-1)
-    const nextCursor =
-      hasNextPage && lastItem
-        ? this.#encodeCursor(
-            sort === 'listenedAt' ? lastItem.listenedAt : lastItem.createdAt,
-            lastItem.id,
-          )
-        : null
+    const nextCursor = this.#encodeNextCursor(items, hasNextPage, sort)
 
-    return {
-      items,
-      nextCursor,
-    }
+    return { items, nextCursor }
   }
 
   async findByUserIdAndTrackIdOnSameDay(userId: string, trackId: string, listenedAt: Date) {
