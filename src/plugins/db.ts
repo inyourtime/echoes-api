@@ -11,9 +11,11 @@ const plugin = definePlugin(
   {
     name: 'db',
   },
-  async (app) => {
-    await db.execute('SELECT 1')
-    app.log.info('Connected to database')
+  async (app, { config }) => {
+    if (config.enableDbConnection) {
+      await db.execute('SELECT 1')
+      app.log.info('Connected to database')
+    }
 
     app.addHook('onClose', async () => {
       await db.$client.end()

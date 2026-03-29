@@ -28,6 +28,7 @@ export interface IConfig {
   }
   enableCookieSecure: boolean
   frontendUrl: string
+  enableDbConnection?: boolean // default: true
 }
 
 function getLoggerConfig(logLevel: string) {
@@ -70,6 +71,7 @@ const schema = Type.Object({
   JWT_NBF_GRACE: Type.String({ default: '10s' }), // 10 seconds
   ENABLE_COOKIE_SECURE: Type.Boolean({ default: true }),
   FRONTEND_URL: Type.String({ default: 'http://localhost:3001' }),
+  ENABLE_DB_CONNECTION: Type.Boolean({ default: true }),
 })
 
 function getConfig() {
@@ -159,6 +161,7 @@ function getConfig() {
     },
     enableCookieSecure: env.ENABLE_COOKIE_SECURE,
     frontendUrl: env.FRONTEND_URL,
+    enableDbConnection: env.ENABLE_DB_CONNECTION,
   }
 
   return config

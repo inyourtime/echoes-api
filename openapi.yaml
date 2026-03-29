@@ -1,0 +1,1799 @@
+openapi: 3.0.3
+info:
+  title: Echoes API
+  description: API documentation for Echoes
+  version: 0.0.0
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Bearer token authentication
+  schemas:
+    def-0:
+      type: object
+      required:
+        - badRequest
+        - unauthorized
+        - internalServerError
+        - conflict
+        - notFound
+        - forbidden
+      properties:
+        badRequest:
+          type: object
+          required:
+            - statusCode
+            - error
+            - message
+          properties:
+            statusCode:
+              type: number
+              const: 400
+            error:
+              type: string
+              const: Bad Request
+            message:
+              type: string
+              example: Bad Request
+          title: 400 Bad Request
+        unauthorized:
+          type: object
+          required:
+            - statusCode
+            - error
+            - message
+          properties:
+            statusCode:
+              type: number
+              const: 401
+            error:
+              type: string
+              const: Unauthorized
+            message:
+              type: string
+              example: Unauthorized
+          title: 401 Unauthorized
+        internalServerError:
+          type: object
+          required:
+            - statusCode
+            - error
+            - message
+          properties:
+            statusCode:
+              type: number
+              const: 500
+            error:
+              type: string
+              const: Internal Server Error
+            message:
+              type: string
+              example: Internal server error
+          title: 500 Internal Server Error
+        conflict:
+          type: object
+          required:
+            - statusCode
+            - error
+            - message
+          properties:
+            statusCode:
+              type: number
+              const: 409
+            error:
+              type: string
+              const: Conflict
+            message:
+              type: string
+              example: Conflict
+          title: 409 Conflict
+        notFound:
+          type: object
+          required:
+            - statusCode
+            - error
+            - message
+          properties:
+            statusCode:
+              type: number
+              const: 404
+            error:
+              type: string
+              const: Not Found
+            message:
+              type: string
+              example: Not Found
+          title: 404 Not Found
+        forbidden:
+          type: object
+          required:
+            - statusCode
+            - error
+            - message
+          properties:
+            statusCode:
+              type: number
+              const: 403
+            error:
+              type: string
+              const: Forbidden
+            message:
+              type: string
+              example: Forbidden
+          title: 403 Forbidden
+      title: Responses
+      description: Common response schemas
+paths:
+  /api/v1/test:
+    get:
+      tags:
+        - health
+      security: []
+      responses:
+        "200":
+          description: Default Response
+  /api/v1/auth/register:
+    post:
+      summary: Register a new user
+      tags: &a1
+        - Auth
+      description: Register a new user with email and password. An email verification
+        token will be sent to the user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: inyourtimeguy@gmail.com
+                password:
+                  type: string
+                  minLength: 8
+                  example: "12345678"
+                name:
+                  type: string
+                  minLength: 1
+                  example: John Doe
+      security: []
+      responses:
+        "201":
+          description: Register response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - user
+                  - message
+                properties:
+                  user:
+                    type: object
+                    required:
+                      - id
+                      - email
+                      - name
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      name:
+                        type: string
+                  message:
+                    type: string
+                description: Register response
+        "409":
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/conflict"
+  /api/v1/auth/login:
+    post:
+      summary: Login a user
+      tags: *a1
+      description: Login a user with email and password. Returns access token and
+        refresh token (via cookie). If email is not verified, returns 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: inyourtimeguy@gmail.com
+                password:
+                  type: string
+                  example: "12345678"
+      security: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - accessToken
+                properties:
+                  accessToken:
+                    type: string
+                    example: access_token
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "403":
+          description: Email not verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/forbidden"
+  /api/v1/auth/verify-email:
+    post:
+      summary: Verify email address
+      tags: *a1
+      description: Verify email address using token from email. Returns success message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  minLength: 1
+                  example: verification_token
+      security: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/badRequest"
+  /api/v1/auth/resend-verification:
+    post:
+      summary: Resend verification email
+      tags: *a1
+      description: Resend verification email to user. Always returns success to
+        prevent email enumeration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  minLength: 1
+                  example: inyourtimeguy@gmail.com
+      security: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+  /api/v1/auth/me:
+    get:
+      summary: Get current user information
+      tags: *a1
+      description: Retrieve the authenticated user's information
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Get current user response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - user
+                properties:
+                  user:
+                    type: object
+                    required:
+                      - id
+                      - email
+                      - name
+                      - avatarUrl
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      name:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      avatarUrl:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                description: Get current user response
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/notFound"
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh access token
+      tags: *a1
+      description: Generate a new access token using a valid refresh token
+      security: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - accessToken
+                properties:
+                  accessToken:
+                    type: string
+                    example: access_token
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "403":
+          description: Account disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/forbidden"
+  /api/v1/stats/top-artists:
+    get:
+      summary: Get top artists
+      tags: &a2
+        - Stats
+      description: Get the most saved artists for the authenticated user
+      parameters:
+        - schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          in: query
+          name: limit
+          required: false
+          description: Number of top artists to return
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - artists
+                properties:
+                  artists:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - artist
+                        - count
+                      properties:
+                        artist:
+                          type: string
+                          description: Artist name
+                        count:
+                          type: integer
+                          description: Number of tracks saved
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+  /api/v1/stats/monthly-activity:
+    get:
+      summary: Get monthly activity
+      tags: *a2
+      description: Get track save activity per month for the last N months
+      parameters:
+        - schema:
+            type: integer
+            default: 12
+            minimum: 1
+            maximum: 24
+          in: query
+          name: months
+          required: false
+          description: Number of months to look back
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - activity
+                properties:
+                  activity:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - month
+                        - count
+                      properties:
+                        month:
+                          type: string
+                          description: Month in YYYY-MM format
+                        count:
+                          type: integer
+                          description: Number of tracks saved in this month
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+  /api/v1/stats/tag-distribution:
+    get:
+      summary: Get tag distribution
+      tags: *a2
+      description: Get the distribution of tags used across all user tracks
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - distribution
+                  - totalTagged
+                properties:
+                  distribution:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - tagId
+                        - name
+                        - count
+                        - percentage
+                      properties:
+                        tagId:
+                          type: string
+                          format: uuid
+                          description: Tag ID
+                        name:
+                          type: string
+                          description: Tag name
+                        color:
+                          type: string
+                          description: Tag color hex code
+                        count:
+                          type: integer
+                          description: Number of entries with this tag
+                        percentage:
+                          type: integer
+                          description: Percentage of total tagged entries (0-100)
+                  totalTagged:
+                    type: integer
+                    description: Total number of tagged entries
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+  /api/v1/stats/overview:
+    get:
+      summary: Get overview stats
+      tags: *a2
+      description: Get combined overview statistics for the user dashboard
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - totalTracks
+                  - totalArtists
+                  - uniqueTagsUsed
+                  - thisMonthCount
+                properties:
+                  totalTracks:
+                    type: integer
+                    description: Total number of tracks saved
+                  totalArtists:
+                    type: integer
+                    description: Number of unique artists
+                  uniqueTagsUsed:
+                    type: integer
+                    description: Number of unique tags used
+                  thisMonthCount:
+                    type: integer
+                    description: Number of tracks saved this month
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+  /api/v1/tag:
+    get:
+      summary: List user tags
+      tags: &a3
+        - Tag
+      description: Get all tags created by the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - tags
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - userId
+                        - name
+                        - color
+                        - createdAt
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        userId:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        color:
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                        createdAt:
+                          type: string
+                          format: date-time
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+    post:
+      summary: Create tag
+      tags: *a3
+      description: Create a new tag for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  description: Tag name
+                color:
+                  type: string
+                  description: Hex color code
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - tag
+                properties:
+                  tag:
+                    type: object
+                    required:
+                      - id
+                      - userId
+                      - name
+                      - color
+                      - createdAt
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      userId:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      color:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      createdAt:
+                        type: string
+                        format: date-time
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/badRequest"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "409":
+          description: Tag already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/conflict"
+  /api/v1/tag/{id}:
+    get:
+      summary: Get tag by ID
+      tags: *a3
+      description: Get a single tag by its ID
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+          description: Tag ID
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - tag
+                properties:
+                  tag:
+                    type: object
+                    required:
+                      - id
+                      - userId
+                      - name
+                      - color
+                      - createdAt
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      userId:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      color:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      createdAt:
+                        type: string
+                        format: date-time
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "404":
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/notFound"
+    patch:
+      summary: Update tag
+      tags: *a3
+      description: Update a tag name or color
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  description: Tag name
+                color:
+                  type: string
+                  description: Hex color code
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+          description: Tag ID
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - tag
+                properties:
+                  tag:
+                    type: object
+                    required:
+                      - id
+                      - userId
+                      - name
+                      - color
+                      - createdAt
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      userId:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      color:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      createdAt:
+                        type: string
+                        format: date-time
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/badRequest"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "404":
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/notFound"
+        "409":
+          description: Tag name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/conflict"
+    delete:
+      summary: Delete tag
+      tags: *a3
+      description: Delete a tag and remove it from all user tracks
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+          description: Tag ID
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Default Response
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "404":
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/notFound"
+  /api/v1/track/search:
+    get:
+      summary: Search tracks from Apple Music
+      tags:
+        - Track
+      description: Search for tracks using Apple Music (iTunes) API
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+          in: query
+          name: q
+          required: true
+          description: Search query for tracks
+        - schema:
+            type: number
+            default: 10
+            maximum: 20
+          in: query
+          name: limit
+          required: false
+          description: Maximum number of results
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - tracks
+                properties:
+                  tracks:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - trackId
+                        - title
+                        - artist
+                      properties:
+                        trackId:
+                          type: string
+                          description: Apple Music track ID
+                        title:
+                          type: string
+                          description: Track title
+                        artist:
+                          type: string
+                          description: Artist name
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+  /api/v1/user-track/{id}:
+    get:
+      summary: Get user track by ID
+      tags: &a4
+        - User Track
+      description: Get a single user track entry with track details and tags
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+          description: User track ID
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - userTrack
+                properties:
+                  userTrack:
+                    type: object
+                    required:
+                      - id
+                      - userId
+                      - trackId
+                      - note
+                      - youtubeUrl
+                      - listenedAt
+                      - createdAt
+                      - updatedAt
+                      - track
+                      - tags
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      userId:
+                        type: string
+                        format: uuid
+                      trackId:
+                        type: string
+                        format: uuid
+                      note:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      youtubeUrl:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      listenedAt:
+                        type: string
+                        format: date-time
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      track:
+                        type: object
+                        required:
+                          - id
+                          - source
+                          - externalId
+                          - title
+                          - artist
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          source:
+                            enum:
+                              - spotify
+                              - manual
+                              - apple-music
+                          externalId:
+                            anyOf:
+                              - type: string
+                              - type: "null"
+                          title:
+                            type: string
+                          artist:
+                            type: string
+                      tags:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - id
+                            - userId
+                            - name
+                            - color
+                            - createdAt
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            userId:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                            color:
+                              anyOf:
+                                - type: string
+                                - type: "null"
+                            createdAt:
+                              type: string
+                              format: date-time
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "404":
+          description: User track not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/notFound"
+    patch:
+      summary: Update user track
+      tags: *a4
+      description: Update user track fields and/or tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                track:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    artist:
+                      type: string
+                note:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                  description: Personal note about this track (null to clear)
+                youtubeUrl:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                  description: YouTube URL for this track (null to clear)
+                listenedAt:
+                  type: string
+                  format: date-time
+                  description: When the user listened to this track (ISO 8601)
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Replace all tags with these IDs (empty array to clear all)
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+          description: User track ID
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - userTrack
+                properties:
+                  userTrack:
+                    type: object
+                    required:
+                      - id
+                      - userId
+                      - trackId
+                      - note
+                      - youtubeUrl
+                      - listenedAt
+                      - createdAt
+                      - updatedAt
+                      - track
+                      - tags
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      userId:
+                        type: string
+                        format: uuid
+                      trackId:
+                        type: string
+                        format: uuid
+                      note:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      youtubeUrl:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      listenedAt:
+                        type: string
+                        format: date-time
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      track:
+                        type: object
+                        required:
+                          - id
+                          - source
+                          - externalId
+                          - title
+                          - artist
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          source:
+                            enum:
+                              - spotify
+                              - manual
+                              - apple-music
+                          externalId:
+                            anyOf:
+                              - type: string
+                              - type: "null"
+                          title:
+                            type: string
+                          artist:
+                            type: string
+                      tags:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - id
+                            - userId
+                            - name
+                            - color
+                            - createdAt
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            userId:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                            color:
+                              anyOf:
+                                - type: string
+                                - type: "null"
+                            createdAt:
+                              type: string
+                              format: date-time
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/badRequest"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "404":
+          description: User track not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/notFound"
+    delete:
+      summary: Delete user track
+      tags: *a4
+      description: Delete a user track entry
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: id
+          required: true
+          description: User track ID
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Successfully deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "404":
+          description: User track not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/notFound"
+  /api/v1/user-track:
+    get:
+      summary: List user tracks
+      tags: *a4
+      description: Get paginated list of user tracks with optional sorting and tags
+      parameters:
+        - schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          in: query
+          name: limit
+          required: false
+          description: Number of items to return per page
+        - schema:
+            type: string
+          in: query
+          name: cursor
+          required: false
+          description: Cursor for pagination
+        - schema:
+            enum:
+              - listenedAt
+              - createdAt
+            default: listenedAt
+          in: query
+          name: sort
+          required: false
+          description: Field to sort by
+        - schema:
+            enum:
+              - asc
+              - desc
+            default: desc
+          in: query
+          name: order
+          required: false
+          description: Sort order
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Paginated list of user tracks
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - userTracks
+                  - meta
+                properties:
+                  userTracks:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - userId
+                        - trackId
+                        - note
+                        - youtubeUrl
+                        - listenedAt
+                        - createdAt
+                        - updatedAt
+                        - track
+                        - tags
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        userId:
+                          type: string
+                          format: uuid
+                        trackId:
+                          type: string
+                          format: uuid
+                        note:
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                        youtubeUrl:
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                        listenedAt:
+                          type: string
+                          format: date-time
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+                        track:
+                          type: object
+                          required:
+                            - id
+                            - source
+                            - externalId
+                            - title
+                            - artist
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            source:
+                              enum:
+                                - spotify
+                                - manual
+                                - apple-music
+                            externalId:
+                              anyOf:
+                                - type: string
+                                - type: "null"
+                            title:
+                              type: string
+                            artist:
+                              type: string
+                        tags:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                              - id
+                              - userId
+                              - name
+                              - color
+                              - createdAt
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                              userId:
+                                type: string
+                                format: uuid
+                              name:
+                                type: string
+                              color:
+                                anyOf:
+                                  - type: string
+                                  - type: "null"
+                              createdAt:
+                                type: string
+                                format: date-time
+                  meta:
+                    type: object
+                    required:
+                      - limit
+                      - nextCursor
+                    properties:
+                      limit:
+                        type: integer
+                        description: Items per page
+                      nextCursor:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                        description: Cursor for the next page (null if no more items)
+                description: Paginated list of user tracks
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+    post:
+      summary: Create a user track entry
+      tags: *a4
+      description: Create a user track entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - track
+              properties:
+                externalId:
+                  type: string
+                  description: External track ID if source is external
+                track:
+                  type: object
+                  required:
+                    - title
+                    - artist
+                  properties:
+                    title:
+                      type: string
+                      minLength: 1
+                      description: Track title
+                    artist:
+                      type: string
+                      minLength: 1
+                      description: Artist name
+                  description: Track information
+                note:
+                  type: string
+                  description: Personal note about this track
+                youtubeUrl:
+                  type: string
+                  format: uri
+                  description: YouTube URL for this track
+                listenedAt:
+                  type: string
+                  format: date-time
+                  description: When the user listened to this track (ISO 8601)
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  maxItems: 10
+                  description: Tag IDs to attach to this user track
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - userTrack
+                properties:
+                  userTrack:
+                    type: object
+                    required:
+                      - id
+                      - userId
+                      - trackId
+                      - note
+                      - youtubeUrl
+                      - listenedAt
+                      - createdAt
+                      - updatedAt
+                      - track
+                      - tags
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      userId:
+                        type: string
+                        format: uuid
+                      trackId:
+                        type: string
+                        format: uuid
+                      note:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      youtubeUrl:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      listenedAt:
+                        type: string
+                        format: date-time
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      track:
+                        type: object
+                        required:
+                          - id
+                          - source
+                          - externalId
+                          - title
+                          - artist
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          source:
+                            enum:
+                              - spotify
+                              - manual
+                              - apple-music
+                          externalId:
+                            anyOf:
+                              - type: string
+                              - type: "null"
+                          title:
+                            type: string
+                          artist:
+                            type: string
+                      tags:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - id
+                            - userId
+                            - name
+                            - color
+                            - createdAt
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            userId:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                            color:
+                              anyOf:
+                                - type: string
+                                - type: "null"
+                            createdAt:
+                              type: string
+                              format: date-time
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/badRequest"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+        "409":
+          description: Already logged track
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/conflict"
+  /api/v1/user-track/search:
+    post:
+      summary: Search user tracks
+      tags: *a4
+      description: Search user tracks by track title and artist with full-text search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  default: 20
+                  minimum: 1
+                  maximum: 100
+                  description: Number of items to return per page
+                cursor:
+                  type: string
+                  description: Cursor for pagination
+                sort:
+                  enum:
+                    - listenedAt
+                    - createdAt
+                  default: listenedAt
+                  description: Field to sort by
+                order:
+                  enum:
+                    - asc
+                    - desc
+                  default: desc
+                  description: Sort order
+                search:
+                  type: string
+                  minLength: 1
+                  description: Full-text search across track title and artist
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Filter by tag IDs (OR condition)
+                artist:
+                  type: string
+                  minLength: 1
+                  description: Filter by artist name (normalized match)
+                listenedAtFrom:
+                  type: string
+                  format: date
+                  description: Filter by listenedAt date range - start date (YYYY-MM-DD)
+                listenedAtTo:
+                  type: string
+                  format: date
+                  description: Filter by listenedAt date range - end date (YYYY-MM-DD)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Paginated list of user tracks
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - userTracks
+                  - meta
+                properties:
+                  userTracks:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - userId
+                        - trackId
+                        - note
+                        - youtubeUrl
+                        - listenedAt
+                        - createdAt
+                        - updatedAt
+                        - track
+                        - tags
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        userId:
+                          type: string
+                          format: uuid
+                        trackId:
+                          type: string
+                          format: uuid
+                        note:
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                        youtubeUrl:
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                        listenedAt:
+                          type: string
+                          format: date-time
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+                        track:
+                          type: object
+                          required:
+                            - id
+                            - source
+                            - externalId
+                            - title
+                            - artist
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            source:
+                              enum:
+                                - spotify
+                                - manual
+                                - apple-music
+                            externalId:
+                              anyOf:
+                                - type: string
+                                - type: "null"
+                            title:
+                              type: string
+                            artist:
+                              type: string
+                        tags:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                              - id
+                              - userId
+                              - name
+                              - color
+                              - createdAt
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                              userId:
+                                type: string
+                                format: uuid
+                              name:
+                                type: string
+                              color:
+                                anyOf:
+                                  - type: string
+                                  - type: "null"
+                              createdAt:
+                                type: string
+                                format: date-time
+                  meta:
+                    type: object
+                    required:
+                      - limit
+                      - nextCursor
+                    properties:
+                      limit:
+                        type: integer
+                        description: Items per page
+                      nextCursor:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                        description: Cursor for the next page (null if no more items)
+                description: Paginated list of user tracks
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-0/properties/unauthorized"
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: User Track
+    description: User track endpoints
+  - name: Stats
+    description: Statistics endpoints
+  - name: Tag
+    description: Tag endpoints
+  - name: Track
+    description: Track endpoints
