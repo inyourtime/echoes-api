@@ -169,6 +169,18 @@ export const SearchUserTracksQuery = Type.Object(
         description: 'Filter by artist name (normalized match)',
       }),
     ),
+    listenedAtFrom: Type.Optional(
+      Type.String({
+        format: 'date',
+        description: 'Filter by listenedAt date range - start date (YYYY-MM-DD)',
+      }),
+    ),
+    listenedAtTo: Type.Optional(
+      Type.String({
+        format: 'date',
+        description: 'Filter by listenedAt date range - end date (YYYY-MM-DD)',
+      }),
+    ),
   },
   { description: 'Query parameters for searching user tracks' },
 )

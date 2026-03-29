@@ -32,6 +32,8 @@ export interface SearchUserTracksOptions extends ListUserTracksOptions {
   search?: string
   tagIds?: string[]
   artist?: string
+  listenedAtFrom?: string
+  listenedAtTo?: string
 }
 
 export interface UserTrackWithTrackAndTags
@@ -177,7 +179,18 @@ export class UserTrackRepository {
     items: UserTrackWithTrackAndTags[]
     nextCursor: string | null
   }> {
-    const { userId, limit, cursor, sort, order, search, tagIds, artist } = options
+    const {
+      userId,
+      limit,
+      cursor,
+      sort,
+      order,
+      search,
+      tagIds,
+      artist,
+      listenedAtFrom,
+      listenedAtTo,
+    } = options
     const { sortColumn, orderFn, cursorFn } = this.#buildSortAndOrder(sort, order)
     const cursorCondition = this.#buildCursorCondition(cursor, sortColumn, cursorFn)
 
@@ -199,6 +212,14 @@ export class UserTrackRepository {
     if (artist) {
       const artistNormalized = normalizeText(artist)
       whereConditions.push(eq(tracks.artistNormalized, artistNormalized))
+    }
+
+    // ListenedAt date range filter
+    if (listenedAtFrom) {
+      whereConditions.push(sql`DATE(${userTracks.listenedAt}) >= ${listenedAtFrom}`)
+    }
+    if (listenedAtTo) {
+      whereConditions.push(sql`DATE(${userTracks.listenedAt}) <= ${listenedAtTo}`)
     }
 
     let andQuery: string | undefined
