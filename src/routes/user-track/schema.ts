@@ -105,11 +105,6 @@ export const ListUserTracksQuery = Type.Object(
       default: 'desc',
       description: 'Sort order',
     }),
-    search: Type.Optional(
-      Type.String({
-        description: 'Full-text search across track title and artist',
-      }),
-    ),
   },
   { description: 'Query parameters for cursor-based paginated user track list' },
 )
@@ -130,6 +125,43 @@ export const ListUserTracksResponse = Type.Object(
   },
   { description: 'Paginated list of user tracks' },
 )
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEARCH USER TRACKS SCHEMAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Query parameters for searching user tracks
+export const SearchUserTracksQuery = Type.Object(
+  {
+    limit: OptionalWithDefault(Type.Integer(), {
+      default: 20,
+      minimum: 1,
+      maximum: 100,
+      description: 'Number of items to return per page',
+    }),
+    cursor: Type.Optional(
+      Type.String({
+        description: 'Cursor for pagination',
+      }),
+    ),
+    sort: OptionalWithDefault(Type.Enum(['listenedAt', 'createdAt']), {
+      default: 'listenedAt',
+      description: 'Field to sort by',
+    }),
+    order: OptionalWithDefault(Type.Enum(['asc', 'desc']), {
+      default: 'desc',
+      description: 'Sort order',
+    }),
+    search: Type.String({
+      minLength: 1,
+      description: 'Full-text search across track title and artist',
+    }),
+  },
+  { description: 'Query parameters for searching user tracks' },
+)
+
+// Search response (same format as list)
+export const SearchUserTracksResponse = ListUserTracksResponse
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET SINGLE USER TRACK SCHEMAS

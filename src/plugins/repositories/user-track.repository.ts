@@ -26,7 +26,10 @@ export interface ListUserTracksOptions {
   cursor?: string | null // cursor-based pagination (listenedAt_timestamp:id)
   sort: 'listenedAt' | 'createdAt'
   order: 'asc' | 'desc'
-  search?: string
+}
+
+export interface SearchUserTracksOptions extends ListUserTracksOptions {
+  search: string
 }
 
 export interface UserTrackWithTrackAndTags
@@ -87,6 +90,66 @@ export class UserTrackRepository {
   }
 
   async findManyByUserId(options: ListUserTracksOptions): Promise<{
+    items: UserTrackWithTrackAndTags[]
+    nextCursor: string | null
+  }> {
+    const { userId, limit, cursor, sort, order } = options
+
+    const sortColumn = sort === 'listenedAt' ? userTracks.listenedAt : userTracks.createdAt
+    const orderFn = order === 'desc' ? desc : asc
+    const cursorFn = order === 'desc' ? lt : gt
+
+    let cursorCondition: SQL<unknown> | undefined
+    if (cursor) {
+      const decoded = this.#decodeCursor(cursor)
+      if (decoded) {
+        const [cursorTimestamp, cursorId] = decoded
+        cursorCondition = or(
+          cursorFn(sortColumn, cursorTimestamp),
+          and(eq(sortColumn, cursorTimestamp), cursorFn(userTracks.id, cursorId)),
+        )
+      }
+    }
+
+    const whereConditions: (SQL<unknown> | undefined)[] = [eq(userTracks.userId, userId)]
+    if (cursorCondition) whereConditions.push(cursorCondition)
+
+    const rows = await db.query.userTracks.findMany({
+      where: and(...whereConditions),
+      with: {
+        track: true,
+        userTrackTags: {
+          with: {
+            tag: true,
+          },
+        },
+      },
+      orderBy: [orderFn(sortColumn), orderFn(userTracks.id)],
+      limit: limit + 1,
+    })
+
+    const hasNextPage = rows.length > limit
+    if (hasNextPage) rows.pop()
+
+    const lastItem = rows.at(-1)
+    const nextCursor =
+      hasNextPage && lastItem
+        ? this.#encodeCursor(
+            sort === 'listenedAt' ? lastItem.listenedAt : lastItem.createdAt,
+            lastItem.id,
+          )
+        : null
+
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        tags: row.userTrackTags.map(({ tag }) => tag),
+      })),
+      nextCursor,
+    }
+  }
+
+  async searchByUserId(options: SearchUserTracksOptions): Promise<{
     items: UserTrackWithTrackAndTags[]
     nextCursor: string | null
   }> {

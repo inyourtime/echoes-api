@@ -7,6 +7,8 @@ import {
   GetUserTrackResponse,
   ListUserTracksQuery,
   ListUserTracksResponse,
+  SearchUserTracksQuery,
+  SearchUserTracksResponse,
   UpdateUserTrackBody,
   UpdateUserTrackResponse,
 } from './schema.ts'
@@ -177,6 +179,40 @@ const route = defineRoute(
           userTracks: items,
           meta: {
             limit: query.limit,
+            nextCursor,
+          },
+        })
+      },
+    )
+
+    // POST /search - Search user tracks
+    app.post(
+      '/search',
+      {
+        config: { auth: true },
+        schema: {
+          summary: 'Search user tracks',
+          description: 'Search user tracks by track title and artist with full-text search',
+          body: SearchUserTracksQuery,
+          response: {
+            200: SearchUserTracksResponse,
+            401: { $ref: 'responses#/properties/unauthorized', description: 'Unauthorized' },
+          },
+        },
+      },
+      async (request, reply) => {
+        const userId = request.getUser().sub
+        const { body } = request
+
+        const { items, nextCursor } = await userTrackRepository.searchByUserId({
+          userId,
+          ...body,
+        })
+
+        return reply.send({
+          userTracks: items,
+          meta: {
+            limit: body.limit,
             nextCursor,
           },
         })
