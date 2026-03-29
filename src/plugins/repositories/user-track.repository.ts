@@ -31,6 +31,7 @@ export interface ListUserTracksOptions {
 export interface SearchUserTracksOptions extends ListUserTracksOptions {
   search?: string
   tagIds?: string[]
+  artist?: string
 }
 
 export interface UserTrackWithTrackAndTags
@@ -176,7 +177,7 @@ export class UserTrackRepository {
     items: UserTrackWithTrackAndTags[]
     nextCursor: string | null
   }> {
-    const { userId, limit, cursor, sort, order, search, tagIds } = options
+    const { userId, limit, cursor, sort, order, search, tagIds, artist } = options
     const { sortColumn, orderFn, cursorFn } = this.#buildSortAndOrder(sort, order)
     const cursorCondition = this.#buildCursorCondition(cursor, sortColumn, cursorFn)
 
@@ -192,6 +193,12 @@ export class UserTrackRepository {
           WHERE ${inArray(userTrackTags.tagId, tagIds)}
         )`,
       )
+    }
+
+    // Artist filter: normalize input and match against artistNormalized
+    if (artist) {
+      const artistNormalized = normalizeText(artist)
+      whereConditions.push(eq(tracks.artistNormalized, artistNormalized))
     }
 
     let andQuery: string | undefined

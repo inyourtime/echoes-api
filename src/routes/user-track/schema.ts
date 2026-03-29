@@ -163,6 +163,12 @@ export const SearchUserTracksQuery = Type.Object(
         description: 'Filter by tag IDs (user track must have ALL specified tags)',
       }),
     ),
+    artist: Type.Optional(
+      Type.String({
+        minLength: 1,
+        description: 'Filter by artist name (normalized match)',
+      }),
+    ),
   },
   { description: 'Query parameters for searching user tracks' },
 )
