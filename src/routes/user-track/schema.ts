@@ -131,59 +131,56 @@ export const ListUserTracksResponse = Type.Object(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Query parameters for searching user tracks
-export const SearchUserTracksQuery = Type.Object(
-  {
-    limit: OptionalWithDefault(Type.Integer(), {
-      default: 20,
-      minimum: 1,
-      maximum: 100,
-      description: 'Number of items to return per page',
+export const SearchUserTracksQuery = Type.Object({
+  limit: OptionalWithDefault(Type.Integer(), {
+    default: 20,
+    minimum: 1,
+    maximum: 100,
+    description: 'Number of items to return per page',
+  }),
+  cursor: Type.Optional(
+    Type.String({
+      description: 'Cursor for pagination',
     }),
-    cursor: Type.Optional(
-      Type.String({
-        description: 'Cursor for pagination',
-      }),
-    ),
-    sort: OptionalWithDefault(Type.Enum(['listenedAt', 'createdAt']), {
-      default: 'listenedAt',
-      description: 'Field to sort by',
+  ),
+  sort: OptionalWithDefault(Type.Enum(['listenedAt', 'createdAt']), {
+    default: 'listenedAt',
+    description: 'Field to sort by',
+  }),
+  order: OptionalWithDefault(Type.Enum(['asc', 'desc']), {
+    default: 'desc',
+    description: 'Sort order',
+  }),
+  search: Type.Optional(
+    Type.String({
+      minLength: 1,
+      description: 'Full-text search across track title and artist',
     }),
-    order: OptionalWithDefault(Type.Enum(['asc', 'desc']), {
-      default: 'desc',
-      description: 'Sort order',
+  ),
+  tagIds: Type.Optional(
+    Type.Array(Type.String({ format: 'uuid' }), {
+      description: 'Filter by tag IDs (OR condition)',
     }),
-    search: Type.Optional(
-      Type.String({
-        minLength: 1,
-        description: 'Full-text search across track title and artist',
-      }),
-    ),
-    tagIds: Type.Optional(
-      Type.Array(Type.String({ format: 'uuid' }), {
-        description: 'Filter by tag IDs (user track must have ALL specified tags)',
-      }),
-    ),
-    artist: Type.Optional(
-      Type.String({
-        minLength: 1,
-        description: 'Filter by artist name (normalized match)',
-      }),
-    ),
-    listenedAtFrom: Type.Optional(
-      Type.String({
-        format: 'date',
-        description: 'Filter by listenedAt date range - start date (YYYY-MM-DD)',
-      }),
-    ),
-    listenedAtTo: Type.Optional(
-      Type.String({
-        format: 'date',
-        description: 'Filter by listenedAt date range - end date (YYYY-MM-DD)',
-      }),
-    ),
-  },
-  { description: 'Query parameters for searching user tracks' },
-)
+  ),
+  artist: Type.Optional(
+    Type.String({
+      minLength: 1,
+      description: 'Filter by artist name (normalized match)',
+    }),
+  ),
+  listenedAtFrom: Type.Optional(
+    Type.String({
+      format: 'date',
+      description: 'Filter by listenedAt date range - start date (YYYY-MM-DD)',
+    }),
+  ),
+  listenedAtTo: Type.Optional(
+    Type.String({
+      format: 'date',
+      description: 'Filter by listenedAt date range - end date (YYYY-MM-DD)',
+    }),
+  ),
+})
 
 // Search response (same format as list)
 export const SearchUserTracksResponse = ListUserTracksResponse
