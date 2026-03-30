@@ -1,16 +1,15 @@
 import { and, asc, desc, eq, gt, inArray, lt, or, type SQL, sql } from 'drizzle-orm'
-import { db, type InferQueryResult } from '#db/index'
+import { db } from '#db/index'
 import {
   type NewTrack,
   type NewUserTrack,
-  type Tag,
   type Track,
   type Transaction,
   tags,
   tracks,
   userTracks,
   userTrackTags,
-} from '#db/schema/index'
+} from '#db/schema'
 import { definePlugin } from '#utils/factories'
 import { normalizeText } from '#utils/normalize'
 
@@ -36,10 +35,13 @@ export interface SearchUserTracksOptions extends ListUserTracksOptions {
   listenedAtTo?: string
 }
 
-export interface UserTrackWithTrackAndTags
-  extends InferQueryResult<'userTracks', { with: { track: true } }> {
-  tags: Array<Tag>
-}
+export type UserTrackWithTrackAndTags = Awaited<
+  ReturnType<
+    typeof db.query.userTracks.findMany<{
+      with: { track: true; tags: true }
+    }>
+  >
+>[number]
 
 export class UserTrackRepository {
   #encodeCursor(timestamp: Date, id: string): string {
@@ -64,24 +66,13 @@ export class UserTrackRepository {
   }
 
   async findById(id: string) {
-    const result = await db.query.userTracks.findFirst({
-      where: eq(userTracks.id, id),
+    return await db.query.userTracks.findFirst({
+      where: { id },
       with: {
         track: true,
-        userTrackTags: {
-          with: {
-            tag: true,
-          },
-        },
+        tags: true,
       },
     })
-
-    return result
-      ? {
-          ...result,
-          tags: result.userTrackTags.map((t) => t.tag),
-        }
-      : undefined
   }
 
   #buildTsQuery(search: string) {
@@ -104,11 +95,12 @@ export class UserTrackRepository {
     cursor: string | null | undefined,
     sortColumn: typeof userTracks.listenedAt | typeof userTracks.createdAt,
     cursorFn: typeof lt | typeof gt,
-  ): SQL<unknown> | undefined {
+  ) {
     if (!cursor) return undefined
     const decoded = this.#decodeCursor(cursor)
     if (!decoded) return undefined
     const [cursorTimestamp, cursorId] = decoded
+
     return or(
       cursorFn(sortColumn, cursorTimestamp),
       and(eq(sortColumn, cursorTimestamp), cursorFn(userTracks.id, cursorId)),
@@ -129,50 +121,72 @@ export class UserTrackRepository {
     )
   }
 
-  #mapQueryResultToItems(
-    rows: InferQueryResult<
-      'userTracks',
-      { with: { track: true; userTrackTags: { with: { tag: true } } } }
-    >[],
-  ): UserTrackWithTrackAndTags[] {
-    return rows.map((row) => ({
-      ...row,
-      tags: row.userTrackTags.map(({ tag }) => tag),
-    }))
-  }
-
   async findManyByUserId(options: ListUserTracksOptions): Promise<{
     items: UserTrackWithTrackAndTags[]
     nextCursor: string | null
   }> {
     const { userId, limit, cursor, sort, order } = options
-    const { sortColumn, orderFn, cursorFn } = this.#buildSortAndOrder(sort, order)
-    const cursorCondition = this.#buildCursorCondition(cursor, sortColumn, cursorFn)
+    const { sortColumn, cursorFn } = this.#buildSortAndOrder(sort, order)
 
-    const whereConditions: (SQL<unknown> | undefined)[] = [eq(userTracks.userId, userId)]
-    if (cursorCondition) whereConditions.push(cursorCondition)
+    let cursorId: string | undefined
+    let cursorTimestamp: Date | undefined
+
+    if (cursor) {
+      const decoded = this.#decodeCursor(cursor)
+      if (decoded) {
+        ;[cursorTimestamp, cursorId] = decoded
+      }
+    }
 
     const rows = await db.query.userTracks.findMany({
-      where: and(...whereConditions),
+      where: {
+        AND: [
+          { userId },
+          {
+            ...(cursorTimestamp && cursorId
+              ? {
+                  OR: [
+                    {
+                      RAW: (t) =>
+                        cursorFn(
+                          sort === 'listenedAt' ? t.listenedAt : t.createdAt,
+                          cursorTimestamp,
+                        ),
+                    },
+                    {
+                      AND: [
+                        {
+                          RAW: (t) =>
+                            eq(sort === 'listenedAt' ? t.listenedAt : t.createdAt, cursorTimestamp),
+                        },
+                        {
+                          RAW: (t) => cursorFn(t.id, cursorId),
+                        },
+                      ],
+                    },
+                  ],
+                }
+              : {}),
+          },
+        ],
+      },
       with: {
         track: true,
-        userTrackTags: {
-          with: {
-            tag: true,
-          },
-        },
+        tags: true,
       },
-      orderBy: [orderFn(sortColumn), orderFn(userTracks.id)],
+      orderBy: {
+        [sort]: order,
+        id: order,
+      },
       limit: limit + 1,
     })
 
     const hasNextPage = rows.length > limit
     if (hasNextPage) rows.pop()
 
-    const items = this.#mapQueryResultToItems(rows)
-    const nextCursor = this.#encodeNextCursor(items, hasNextPage, sort)
+    const nextCursor = this.#encodeNextCursor(rows, hasNextPage, sort)
 
-    return { items, nextCursor }
+    return { items: rows, nextCursor }
   }
 
   async searchByUserId(options: SearchUserTracksOptions): Promise<{
@@ -331,13 +345,12 @@ export class UserTrackRepository {
   }
 
   async findByUserIdAndTrackIdOnSameDay(userId: string, trackId: string, listenedAt: Date) {
-    const listenedAtDate = sql`DATE(${listenedAt})`
     return db.query.userTracks.findFirst({
-      where: and(
-        eq(userTracks.userId, userId),
-        eq(userTracks.trackId, trackId),
-        sql`DATE(${userTracks.listenedAt}) = ${listenedAtDate}`,
-      ),
+      where: {
+        userId,
+        trackId,
+        RAW: (t) => sql`DATE(${t.listenedAt}) = DATE(${listenedAt})`,
+      },
     })
   }
 

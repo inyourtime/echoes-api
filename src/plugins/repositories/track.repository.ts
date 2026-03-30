@@ -1,6 +1,5 @@
-import { and, eq } from 'drizzle-orm'
 import { db } from '#db/index'
-import { type NewTrack, tracks } from '#db/schema/index'
+import { type NewTrack, tracks } from '#db/schema'
 import { definePlugin } from '#utils/factories'
 
 declare module 'fastify' {
@@ -12,22 +11,22 @@ declare module 'fastify' {
 export class TrackRepository {
   async findById(id: string) {
     return db.query.tracks.findFirst({
-      where: eq(tracks.id, id),
+      where: { id },
     })
   }
 
   async findByExternalId(externalId: string) {
     return db.query.tracks.findFirst({
-      where: and(eq(tracks.externalId, externalId)),
+      where: { externalId },
     })
   }
 
   async findByNormalizedTitleArtist(titleNormalized: string, artistNormalized: string) {
     return db.query.tracks.findFirst({
-      where: and(
-        eq(tracks.titleNormalized, titleNormalized),
-        eq(tracks.artistNormalized, artistNormalized),
-      ),
+      where: {
+        titleNormalized,
+        artistNormalized,
+      },
     })
   }
 

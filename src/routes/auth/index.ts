@@ -1,5 +1,5 @@
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
-import type { User } from '#db/schema/index'
+import type { User } from '#db/schema'
 import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '#plugins/token'
 import { defineRoute } from '#utils/factories'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '#utils/hash'

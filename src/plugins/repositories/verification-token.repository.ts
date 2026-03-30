@@ -1,10 +1,10 @@
-import { and, eq, isNull, lt } from 'drizzle-orm'
+import { and, eq, lt } from 'drizzle-orm'
 import { db } from '#db/index'
 import {
   type NewVerificationToken,
   type VerificationTokenType,
   verificationTokens,
-} from '#db/schema/index'
+} from '#db/schema'
 import { definePlugin } from '#utils/factories'
 
 declare module 'fastify' {
@@ -20,7 +20,7 @@ export class VerificationTokenRepository {
 
   async findByTokenHash(tokenHash: string) {
     return db.query.verificationTokens.findFirst({
-      where: eq(verificationTokens.tokenHash, tokenHash),
+      where: { tokenHash },
       with: {
         user: true,
       },
@@ -29,11 +29,11 @@ export class VerificationTokenRepository {
 
   async findUnusedByUserAndType(userId: string, type: VerificationTokenType) {
     return db.query.verificationTokens.findFirst({
-      where: and(
-        eq(verificationTokens.userId, userId),
-        eq(verificationTokens.type, type),
-        isNull(verificationTokens.usedAt),
-      ),
+      where: {
+        userId,
+        type,
+        usedAt: { isNull: true },
+      },
     })
   }
 

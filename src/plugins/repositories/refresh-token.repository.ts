@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db } from '#db/index'
-import { type NewRefreshToken, type RefreshToken, refreshTokens } from '#db/schema/index'
+import { type NewRefreshToken, type RefreshToken, refreshTokens } from '#db/schema'
 import { definePlugin } from '#utils/factories'
 
 declare module 'fastify' {
@@ -29,7 +29,7 @@ export class RefreshTokenRepository {
 
   findByFamily(family: string) {
     return db.query.refreshTokens.findFirst({
-      where: eq(refreshTokens.family, family),
+      where: { family },
       with: {
         user: true,
       },

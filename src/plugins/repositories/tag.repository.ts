@@ -1,6 +1,6 @@
-import { and, eq, ne } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { db } from '#db/index'
-import { type NewTag, tags } from '#db/schema/index'
+import { type NewTag, tags } from '#db/schema'
 import { definePlugin } from '#utils/factories'
 
 declare module 'fastify' {
@@ -16,20 +16,22 @@ export interface ListTagsOptions {
 export class TagRepository {
   async findById(id: string) {
     return db.query.tags.findFirst({
-      where: eq(tags.id, id),
+      where: { id },
     })
   }
 
   async findByUserId(options: ListTagsOptions) {
     return db.query.tags.findMany({
-      where: eq(tags.userId, options.userId),
-      orderBy: tags.name,
+      where: { userId: options.userId },
+      orderBy: {
+        name: 'asc',
+      },
     })
   }
 
   async findByName(userId: string, name: string) {
     return db.query.tags.findFirst({
-      where: and(eq(tags.userId, userId), eq(tags.name, name)),
+      where: { userId, name },
     })
   }
 
@@ -43,13 +45,6 @@ export class TagRepository {
 
   async delete(id: string) {
     await db.delete(tags).where(eq(tags.id, id))
-  }
-
-  async existsOtherWithName(userId: string, name: string, excludeId: string) {
-    const result = await db.query.tags.findFirst({
-      where: and(eq(tags.userId, userId), eq(tags.name, name), ne(tags.id, excludeId)),
-    })
-    return !!result
   }
 }
 

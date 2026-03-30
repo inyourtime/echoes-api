@@ -1,6 +1,6 @@
 import { and, count, desc, eq, sql } from 'drizzle-orm'
 import { db } from '#db/index'
-import { tags, tracks, userTracks, userTrackTags } from '#db/schema/index'
+import { tags, tracks, userTracks, userTrackTags } from '#db/schema'
 import { definePlugin } from '#utils/factories'
 
 declare module 'fastify' {

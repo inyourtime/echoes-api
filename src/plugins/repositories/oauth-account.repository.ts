@@ -1,6 +1,6 @@
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { db } from '#db/index'
-import { type NewOauthAccount, type OauthProvider, oauthAccounts } from '#db/schema/index'
+import { type NewOauthAccount, type OauthProvider, oauthAccounts } from '#db/schema'
 import { definePlugin } from '#utils/factories'
 
 declare module 'fastify' {
@@ -12,10 +12,10 @@ declare module 'fastify' {
 export class OauthAccountRepository {
   async findByProviderAndAccountId(provider: OauthProvider, providerAccountId: string) {
     return db.query.oauthAccounts.findFirst({
-      where: and(
-        eq(oauthAccounts.provider, provider),
-        eq(oauthAccounts.providerAccountId, providerAccountId),
-      ),
+      where: {
+        provider,
+        providerAccountId,
+      },
       with: {
         user: true,
       },
@@ -24,7 +24,10 @@ export class OauthAccountRepository {
 
   async findByUserAndProvider(userId: string, provider: OauthProvider) {
     return db.query.oauthAccounts.findFirst({
-      where: and(eq(oauthAccounts.userId, userId), eq(oauthAccounts.provider, provider)),
+      where: {
+        userId,
+        provider,
+      },
     })
   }
 

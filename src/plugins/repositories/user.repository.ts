@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db } from '#db/index'
-import { type NewUser, users } from '#db/schema/index'
+import { type NewUser, users } from '#db/schema'
 import { definePlugin } from '#utils/factories'
 
 declare module 'fastify' {
@@ -16,7 +16,7 @@ export class UserRepository {
 
   async findById(id: string) {
     return db.query.users.findFirst({
-      where: eq(users.id, id),
+      where: { id },
       columns: {
         passwordHash: false,
       },
@@ -25,7 +25,7 @@ export class UserRepository {
 
   async findByEmail(email: string) {
     return db.query.users.findFirst({
-      where: eq(users.email, email),
+      where: { email },
     })
   }
 

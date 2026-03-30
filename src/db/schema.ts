@@ -1,10 +1,10 @@
-import { relations, type SQL, sql } from 'drizzle-orm'
+import { type SQL, sql } from 'drizzle-orm'
+import type { NodePgTransaction } from 'drizzle-orm/node-postgres'
 import {
   boolean,
   customType,
   index,
   integer,
-  type PgTransaction,
   pgEnum,
   pgTable,
   primaryKey,
@@ -25,6 +25,10 @@ const msTimestamp = (name: string) => timestamp(name, { precision: 3 })
 
 export const oauthProviderEnum = pgEnum('oauth_provider', ['google', 'github'])
 export const trackSourceEnum = pgEnum('track_source', ['spotify', 'apple-music', 'manual'])
+export const verificationTokenTypeEnum = pgEnum('verification_token_type', [
+  'email_verification',
+  'password_reset',
+])
 
 // ─── users ────────────────────────────────────────────────────────────────────
 
@@ -124,11 +128,6 @@ export const refreshTokens = pgTable(
 // ─── user_verification_tokens ────────────────────────────────────────────────
 // ใช้สำหรับ email verification / password reset / etc
 // token ควรเก็บเป็น hash (SHA-256) เพื่อป้องกัน DB leak
-
-export const verificationTokenTypeEnum = pgEnum('verification_token_type', [
-  'email_verification',
-  'password_reset',
-])
 
 export const verificationTokens = pgTable(
   'verification_tokens',
@@ -300,69 +299,9 @@ export const userTrackTags = pgTable(
   ],
 )
 
-// ─── Relations ────────────────────────────────────────────────────────────────
-
-export const usersRelations = relations(users, ({ many }) => ({
-  oauthAccounts: many(oauthAccounts),
-  refreshTokens: many(refreshTokens),
-  verificationTokens: many(verificationTokens),
-  userTracks: many(userTracks),
-  tags: many(tags),
-}))
-
-export const oauthAccountsRelations = relations(oauthAccounts, ({ one }) => ({
-  user: one(users, { fields: [oauthAccounts.userId], references: [users.id] }),
-}))
-
-export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
-  user: one(users, { fields: [refreshTokens.userId], references: [users.id] }),
-}))
-
-export const verificationTokensRelations = relations(verificationTokens, ({ one }) => ({
-  user: one(users, {
-    fields: [verificationTokens.userId],
-    references: [users.id],
-  }),
-}))
-
-export const tracksRelations = relations(tracks, ({ many }) => ({
-  userTracks: many(userTracks),
-}))
-
-export const userTracksRelations = relations(userTracks, ({ one, many }) => ({
-  user: one(users, {
-    fields: [userTracks.userId],
-    references: [users.id],
-  }),
-  track: one(tracks, {
-    fields: [userTracks.trackId],
-    references: [tracks.id],
-  }),
-  userTrackTags: many(userTrackTags),
-}))
-
-export const tagsRelations = relations(tags, ({ one, many }) => ({
-  user: one(users, {
-    fields: [tags.userId],
-    references: [users.id],
-  }),
-  userTrackTags: many(userTrackTags),
-}))
-
-export const userTrackTagsRelations = relations(userTrackTags, ({ one }) => ({
-  userTrack: one(userTracks, {
-    fields: [userTrackTags.userTrackId],
-    references: [userTracks.id],
-  }),
-  tag: one(tags, {
-    fields: [userTrackTags.tagId],
-    references: [tags.id],
-  }),
-}))
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type Transaction = PgTransaction<any, any, any>
+export type Transaction = NodePgTransaction<any, any, any>
 
 // User and Auth Types
 export type User = typeof users.$inferSelect
