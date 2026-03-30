@@ -1,8 +1,8 @@
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
 import type { User } from '#db/schema/index'
+import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '#plugins/token'
 import { defineRoute } from '#utils/factories'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '#utils/hash'
-import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '../../plugins/token.ts'
 import {
   LoginBody,
   MeResponse,

@@ -1,5 +1,5 @@
 import Type from 'typebox'
-import { OptionalWithDefault } from '../../plugins/shared-schemas.ts'
+import { OptionalWithDefault } from '#plugins/shared-schemas'
 
 // Top Artists
 export const TopArtistItem = Type.Object({

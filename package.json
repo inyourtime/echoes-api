@@ -26,7 +26,8 @@
   },
   "imports": {
     "#utils/*": "./src/utils/*.ts",
-    "#db/*": "./src/db/*.ts"
+    "#db/*": "./src/db/*.ts",
+    "#plugins/*": "./src/plugins/*.ts"
   },
   "dependencies": {
     "@fastify/autoload": "^6.3.1",
