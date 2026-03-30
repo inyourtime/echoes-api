@@ -25,11 +25,11 @@ export interface ListUserTracksOptions {
   cursor?: string | null // cursor-based pagination (listenedAt_timestamp:id)
   sort: 'listenedAt' | 'createdAt'
   order: 'asc' | 'desc'
+  tagIds?: string[]
 }
 
 export interface SearchUserTracksOptions extends ListUserTracksOptions {
   search?: string
-  tagIds?: string[]
   artist?: string
   listenedAtFrom?: string
   listenedAtTo?: string
@@ -125,7 +125,7 @@ export class UserTrackRepository {
     items: UserTrackWithTrackAndTags[]
     nextCursor: string | null
   }> {
-    const { userId, limit, cursor, sort, order } = options
+    const { userId, limit, cursor, sort, order, tagIds } = options
     const { cursorFn } = this.#buildSortAndOrder(sort, order)
 
     let cursorId: string | undefined
@@ -142,6 +142,7 @@ export class UserTrackRepository {
       where: {
         AND: [
           { userId },
+          { ...(tagIds && tagIds.length > 0 ? { tags: { id: { in: tagIds } } } : {}) },
           {
             ...(cursorTimestamp && cursorId
               ? {

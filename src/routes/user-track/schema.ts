@@ -105,6 +105,12 @@ export const ListUserTracksQuery = Type.Object(
       default: 'desc',
       description: 'Sort order',
     }),
+    tagIds: Type.Optional(
+      Type.Array(Type.String({ format: 'uuid' }), {
+        maxItems: 5,
+        description: 'Filter by tag IDs (OR condition)',
+      }),
+    ),
   },
   { description: 'Query parameters for cursor-based paginated user track list' },
 )
