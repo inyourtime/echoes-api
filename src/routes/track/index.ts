@@ -1,4 +1,4 @@
-import { defineRoute } from '../../utils/factories.ts'
+import { defineRoute } from '#utils/factories'
 import { TrackSearchQuery, TrackSearchResponse } from './schema.ts'
 
 const ITUNES_SEARCH_URL = 'https://itunes.apple.com/search'

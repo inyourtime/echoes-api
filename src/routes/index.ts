@@ -1,4 +1,4 @@
-import { defineRoute } from '../utils/factories.ts'
+import { defineRoute } from '#utils/factories'
 
 const route = defineRoute(
   {
@@ -8,7 +8,7 @@ const route = defineRoute(
   async (app) => {
     app.get('/', { config: { auth: false } }, async () => {
       // throw new Error('Test error')
-      return true
+      return { success: true }
     })
   },
 )

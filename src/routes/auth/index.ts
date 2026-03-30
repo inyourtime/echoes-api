@@ -1,7 +1,7 @@
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
+import { defineRoute } from '#utils/factories'
 import type { User } from '../../db/schema/index.ts'
 import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '../../plugins/token.ts'
-import { defineRoute } from '../../utils/factories.ts'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '../../utils/hash.ts'
 import {
   LoginBody,
@@ -488,7 +488,7 @@ const route = defineRoute(
         })
 
         // Redirect to frontend with access token as fragment (not sent to server)
-        const redirectUrl = new URL(`${config.frontendUrl}/auth/callback`)
+        const redirectUrl = new URL(`${config.frontendUrl}/auth/google/callback`)
         redirectUrl.hash = `access_token=${tokenPair.accessToken}`
 
         return reply.redirect(redirectUrl.toString())

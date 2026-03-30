@@ -140,6 +140,11 @@ function getConfig() {
         security: [{ bearerAuth: [] }],
       },
       convertConstToEnum: false,
+      refResolver: {
+        buildLocalReference(json, _baseUri, _fragment, i) {
+          return (json.$id || `def-${i}`) as string
+        },
+      },
     },
     oauth2: {
       google: {

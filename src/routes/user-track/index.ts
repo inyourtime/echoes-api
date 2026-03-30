@@ -1,5 +1,5 @@
 import Type from 'typebox'
-import { defineRoute } from '../../utils/factories.ts'
+import { defineRoute } from '#utils/factories'
 import { normalizeText } from '../../utils/normalize.ts'
 import {
   CreateUserTrackBody,

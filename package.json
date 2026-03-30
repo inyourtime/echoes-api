@@ -24,6 +24,9 @@
   "engines": {
     "node": "25"
   },
+  "imports": {
+    "#utils/*": "./src/utils/*.ts"
+  },
   "dependencies": {
     "@fastify/autoload": "^6.3.1",
     "@fastify/cookie": "^11.0.2",

@@ -20,7 +20,7 @@ const plugin = definePlugin(
       logLevel: 'silent',
       configuration: {
         pageTitle: 'Echoes API',
-        theme: 'saturn',
+        theme: 'fastify',
         agent: { disabled: true },
         mcp: { disabled: true },
         hideClientButton: true,
