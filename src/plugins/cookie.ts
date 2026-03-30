@@ -1,5 +1,5 @@
 import fastifyCookie from '@fastify/cookie'
-import { definePlugin } from '../utils/factories.ts'
+import { definePlugin } from '#utils/factories'
 
 declare module 'fastify' {
   interface FastifyInstance {

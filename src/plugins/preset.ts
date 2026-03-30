@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifySchema, RouteOptions } from 'fastify'
 import fastifyRoutePreset from 'fastify-route-preset'
-import { definePlugin } from '../utils/factories.ts'
+import { definePlugin } from '#utils/factories'
 
 export interface PresetOptions {
   tags?: readonly string[]

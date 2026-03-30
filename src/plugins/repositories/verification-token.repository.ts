@@ -1,11 +1,11 @@
 import { and, eq, isNull, lt } from 'drizzle-orm'
+import { definePlugin } from '#utils/factories'
 import { db } from '../../db/index.ts'
 import {
   type NewVerificationToken,
   type VerificationTokenType,
   verificationTokens,
 } from '../../db/schema/index.ts'
-import { definePlugin } from '../../utils/factories.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {

@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gt, inArray, lt, or, type SQL, sql } from 'drizzle-orm'
+import { definePlugin } from '#utils/factories'
 import { db, type InferQueryResult } from '../../db/index.ts'
 import {
   type NewTrack,
@@ -11,7 +12,6 @@ import {
   userTracks,
   userTrackTags,
 } from '../../db/schema/index.ts'
-import { definePlugin } from '../../utils/factories.ts'
 import { normalizeText } from '../../utils/normalize.ts'
 
 declare module 'fastify' {

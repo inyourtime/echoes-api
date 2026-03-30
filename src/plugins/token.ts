@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { createDecoder, createSigner, createVerifier, type SignerPayload } from 'fast-jwt'
+import { definePlugin } from '#utils/factories'
 import type { IConfig } from '../config/index.ts'
-import { definePlugin } from '../utils/factories.ts'
 import { hashToken } from '../utils/hash.ts'
 
 declare module 'fastify' {

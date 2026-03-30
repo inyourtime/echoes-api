@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
+import { definePlugin } from '#utils/factories'
 import { db } from '../../db/index.ts'
 import { type NewOauthAccount, type OauthProvider, oauthAccounts } from '../../db/schema/index.ts'
-import { definePlugin } from '../../utils/factories.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {

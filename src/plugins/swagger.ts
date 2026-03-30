@@ -1,6 +1,6 @@
 import fastifySwagger from '@fastify/swagger'
 import fastifyApiReference from '@scalar/fastify-api-reference'
-import { definePlugin } from '../utils/factories.ts'
+import { definePlugin } from '#utils/factories'
 
 /**
  * Plugin for Swagger documentation
