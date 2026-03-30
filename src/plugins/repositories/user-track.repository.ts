@@ -12,7 +12,7 @@ import {
   userTrackTags,
 } from '#db/schema/index'
 import { definePlugin } from '#utils/factories'
-import { normalizeText } from '../../utils/normalize.ts'
+import { normalizeText } from '#utils/normalize'
 
 declare module 'fastify' {
   interface FastifyInstance {
