@@ -126,7 +126,7 @@ export class UserTrackRepository {
     nextCursor: string | null
   }> {
     const { userId, limit, cursor, sort, order } = options
-    const { sortColumn, cursorFn } = this.#buildSortAndOrder(sort, order)
+    const { cursorFn } = this.#buildSortAndOrder(sort, order)
 
     let cursorId: string | undefined
     let cursorTimestamp: Date | undefined
