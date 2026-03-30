@@ -11,7 +11,7 @@ import {
 
 const route = defineRoute(
   {
-    prefix: '/tag',
+    prefix: '/tags',
     tags: ['Tag'],
   },
   async (app) => {

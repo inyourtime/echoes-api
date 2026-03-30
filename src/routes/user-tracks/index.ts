@@ -15,7 +15,7 @@ import {
 
 const route = defineRoute(
   {
-    prefix: '/user-track',
+    prefix: '/user-tracks',
     tags: ['User Track'],
   },
   async (app) => {

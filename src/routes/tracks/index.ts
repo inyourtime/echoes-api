@@ -15,7 +15,7 @@ interface iTunesSearchResponse {
 
 const route = defineRoute(
   {
-    prefix: '/track',
+    prefix: '/tracks',
     tags: ['Track'],
   },
   async (app) => {
