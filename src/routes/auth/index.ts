@@ -1,6 +1,6 @@
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
+import type { User } from '#db/schema/index'
 import { defineRoute } from '#utils/factories'
-import type { User } from '../../db/schema/index.ts'
 import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '../../plugins/token.ts'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '../../utils/hash.ts'
 import {

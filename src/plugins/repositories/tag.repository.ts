@@ -1,7 +1,7 @@
 import { and, eq, ne } from 'drizzle-orm'
+import { db } from '#db/index'
+import { type NewTag, tags } from '#db/schema/index'
 import { definePlugin } from '#utils/factories'
-import { db } from '../../db/index.ts'
-import { type NewTag, tags } from '../../db/schema/index.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {

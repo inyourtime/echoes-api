@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
+import { db } from '#db/index'
+import { type NewUserTrackTag, userTrackTags } from '#db/schema/index'
 import { definePlugin } from '#utils/factories'
-import { db } from '../../db/index.ts'
-import { type NewUserTrackTag, userTrackTags } from '../../db/schema/index.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {

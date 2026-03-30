@@ -25,7 +25,8 @@
     "node": "25"
   },
   "imports": {
-    "#utils/*": "./src/utils/*.ts"
+    "#utils/*": "./src/utils/*.ts",
+    "#db/*": "./src/db/*.ts"
   },
   "dependencies": {
     "@fastify/autoload": "^6.3.1",
