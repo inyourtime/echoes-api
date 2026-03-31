@@ -5,6 +5,7 @@ import { defineRoute } from '#utils/factories'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '#utils/hash'
 import {
   LoginBody,
+  LogoutResponse,
   MeResponse,
   RegisterBody,
   RegisterResponse,
@@ -286,6 +287,45 @@ const route = defineRoute(
 
         return reply.send({
           user,
+        })
+      },
+    )
+
+    app.post(
+      '/logout',
+      {
+        config: { auth: true },
+        schema: {
+          summary: 'Logout user',
+          description: 'Logout user by invalidating the refresh token and clearing the cookie',
+          response: {
+            200: LogoutResponse,
+            401: { $ref: 'responses#/properties/unauthorized', description: 'Unauthorized' },
+          },
+        },
+      },
+      async (request, reply) => {
+        const { refreshToken } = request.cookies
+
+        if (refreshToken) {
+          try {
+            const payload = tokenService.decodeToken<RefreshTokenPayload>(refreshToken)
+            await refreshTokenRepository.deleteByFamily(payload.family)
+          } catch {
+            // Token is invalid or expired, still clear the cookie
+          }
+        }
+
+        // Clear the refresh token cookie
+        reply.clearCookie('refreshToken', {
+          path: '/',
+          httpOnly: true,
+          secure: config.enableCookieSecure,
+          sameSite: 'strict',
+        })
+
+        return reply.send({
+          message: 'Logout successful',
         })
       },
     )

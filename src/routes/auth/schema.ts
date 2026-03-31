@@ -54,3 +54,7 @@ export const ResendVerificationBody = Type.Object({
 export const ResendVerificationResponse = Type.Object({
   message: Type.String(),
 })
+
+export const LogoutResponse = Type.Object({
+  message: Type.String(),
+})
