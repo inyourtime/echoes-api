@@ -8,7 +8,7 @@ const route = defineRoute(
   async (app) => {
     app.get('/', { config: { auth: false } }, async () => {
       // throw new Error('Test error')
-      return { success: true }
+      return { success: true, message: 'ok' }
     })
   },
 )

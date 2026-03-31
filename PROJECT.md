@@ -14,43 +14,41 @@
     * Song Title & Artist
     * Note (Optional): บันทึกสั้นๆ เช่น "ฟังตอนเริ่มเรียน React"
     * Date: เลือกวันที่ได้ (Default เป็นวันนี้)
+    * Tag (Optional): แท็กเพื่อจัดกลุ่มเพลง เช่น `#sad`, `#study`, `#coding`, `#gym`
     * YouTube URL (Optional): ลิงก์ไปยังเพลงบน YouTube สำหรับฟังย้อนหลัง
-* **Spotify Search:** ค้นหาเพลงจาก Database ของ Spotify เพื่อดึงชื่อและปกอัลบั้มที่ถูกต้องมาใช้
-* **YouTube Integration:** ดึงหรือเพิ่มลิงก์ YouTube สำหรับเพลงที่ไม่มีใน Spotify
+* **Track Search:** ค้นหาเพลงจาก Apple Music API เพื่อดึงข้อมูล Title & Artist มา auto-fill
 
 ### 2️⃣ Timeline View (Main Interface)
 แสดงผลแบบ **Life Journal** เรียงลำดับเวลา (Reverse Chronological):
 * **Yearly/Monthly Grouping:** แยกกลุ่มเพลงตามเดือนและปีชัดเจน
-* **Scannable Layout:** เน้นดูง่ายเหมือน Timeline ของโซเชียลมีเดียแต่เป็นส่วนตัว
+* **Scannable Layout:** เน้นดูง่ายเหมือน Timeline ของโซเชียลมีเดียแต่เป็นส่วนตัว (infinite scroll)
+* **Filtering:** เลือกดู Timeline เฉพาะช่วงที่เป็น Mood ใด Mood หนึ่งได้ (เช่น #sad, #study)
 
 ### 3️⃣ Song History & Context
 * **Deep Dive:** กดที่เพลงเพื่อดูรายละเอียดเชิงลึก
 * **First Listened Date:** วันแรกที่บันทึกเพลงนี้เข้าระบบ
 * **Contextual Memory:** แสดง Note และบรรยากาศที่บันทึกไว้ ณ เวลานั้น
+* **Tags:** แสดง Tag ที่บันทึกไว้
+* **Streaming Links:** แสดงลิงก์ YouTube สำหรับฟังย้อนหลัง
+* **Edit/Delete:** แก้ไขหรือลบเพลงที่บันทึกไว้
 
 ### 4️⃣ Mood Tagging
 * **Personalized Tags:** เพิ่ม Tag ตามอารมณ์หรือกิจกรรม (เช่น `#sad`, `#study`, `#coding`, `#gym`)
-* **Filtering:** เลือกดู Timeline เฉพาะช่วงที่เป็น Mood ใด Mood หนึ่งได้
+* **Tags Management:** จัดการ Tags ที่สร้างขึ้นเองได้ (เพิ่ม, ลบ, แก้ไข)
+* **Color Coding:** แต่ละ Tag มีสีประจำตัวเพื่อความสวยงาม
 
-### 5️⃣ Stats & Insights
-สรุปภาพรวมทางสถิติในรูปแบบที่เข้าใจง่าย:
-* **Most Saved Artist:** ใครคือศิลปินอันดับ 1 ในช่วงเวลานั้นๆ
-* **Activity Heatmap:** เดือนไหนที่เราบันทึกเพลงใหม่เยอะที่สุด
-* **Mood Analysis:** กราฟวงกลม (%) แบ่งตามอารมณ์เพลงที่บันทึก
+## 3. Authentication & Privacy
+* **Email & Password:** ใช้ Email & Password สำหรับการเข้าสู่ระบบ (ต้องการการยืนยันทางอีเมล)
+* **OAuth 2.0:** ใช้ Google OAuth สำหรับการเข้าสู่ระบบ
+* **JWT Tokens:** ใช้ JWT tokens สำหรับการยืนยันตัวตน
+* **Login Page:** หน้าเข้าสู่ระบบที่สวยงามและใช้งานง่าย
+* **Register Page:** หน้าลงทะเบียนที่สวยงามและใช้งานง่าย (email, password, name)
 
----
+## 4. Responsive Design
+* **Mobile-First:** ออกแบบให้ใช้งานได้ดีทั้งบนมือถือและแท็บเล็ต
+* **Desktop Support:** รองรับการใช้งานบนคอมพิวเตอร์ด้วย
+* **Touch-Friendly:** ปุ่มและอินเตอร์เฟซที่ใช้งานง่ายบนมือถือ
 
-## 3. Killer Features (High Value)
-
-### 🎧 Spotify Integration
-* **History Sync:** ดึงข้อมูลจาก *Recently Played* ใน Spotify แล้วให้ User เลือกคลิก "Save to Timeline" ได้โดยไม่ต้องพิมพ์เอง
-* **Metadata Auto-fill:** ดึงข้อมูลแนวเพลงและรูปภาพโดยอัตโนมัติ
-
-### 🎧 YouTube Integration
-* **Fallback Streaming:** เพิ่มลิงก์ YouTube สำหรับเพลงที่ไม่มีบน Spotify หรือเมื่อต้องการแหล่งฟังเพลงสำรอง
-* **Auto-link:** ค้นหาและแนะนำลิงก์ YouTube อัตโนมัติจากชื่อเพลงและศิลปิน
-
-### �📈 Music Life Graph
-* กราฟแท่งแสดงปริมาณเพลงใหม่ที่เพิ่มในแต่ละเดือน เพื่อดูความเคลื่อนไหวของชีวิต (Jan | ██ , Feb | ███)
-
----
+## 5. Progressive Web App (PWA)
+* **Installable:** สามารถติดตั้งเป็นแอปบนมือถือได้
+* **Service Worker:** ใช้ Service Worker สำหรับ caching
