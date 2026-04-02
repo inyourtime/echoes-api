@@ -345,12 +345,11 @@ export class UserTrackRepository {
     return { items, nextCursor }
   }
 
-  async findByUserIdAndTrackIdOnSameDay(userId: string, trackId: string, listenedAt: Date) {
+  async findByUserIdAndTrackId(userId: string, trackId: string) {
     return db.query.userTracks.findFirst({
       where: {
         userId,
         trackId,
-        RAW: (t) => sql`DATE(${t.listenedAt}) = DATE(${listenedAt})`,
       },
     })
   }

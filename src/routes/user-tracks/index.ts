@@ -94,6 +94,29 @@ const route = defineRoute(
           throw app.httpErrors.notFound('User track not found')
         }
 
+        if (
+          track &&
+          (userTrack.track.title !== track.title || userTrack.track.artist !== track.artist)
+        ) {
+          if (track.title && track.artist) {
+            const existTrack = await trackRepository.findByNormalizedTitleArtist(
+              normalizeText(track.title),
+              normalizeText(track.artist),
+            )
+
+            if (existTrack) {
+              // Check for duplicate user track
+              const existingUserTrack = await userTrackRepository.findByUserIdAndTrackId(
+                userId,
+                existTrack.id,
+              )
+              if (existingUserTrack) {
+                throw app.httpErrors.conflict('You have already logged this track')
+              }
+            }
+          }
+        }
+
         await userTrackRepository.updateTrackAndTags(
           userTrack,
           { note, youtubeUrl, listenedAt: listenedAt ? new Date(listenedAt) : undefined },
@@ -262,16 +285,10 @@ const route = defineRoute(
 
         const trackId = existTrack.id
 
-        // Check for duplicate user track on same day
-        const existingUserTrack = await userTrackRepository.findByUserIdAndTrackIdOnSameDay(
-          userId,
-          trackId,
-          listenedAtDate,
-        )
+        // Check for duplicate user track
+        const existingUserTrack = await userTrackRepository.findByUserIdAndTrackId(userId, trackId)
         if (existingUserTrack) {
-          throw app.httpErrors.conflict(
-            `You have already logged this track on ${listenedAtDate.toISOString().split('T')[0]}`,
-          )
+          throw app.httpErrors.conflict('You have already logged this track')
         }
 
         // Create user track entry

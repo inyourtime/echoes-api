@@ -48,6 +48,7 @@ export async function buildApp(config: IConfig) {
     await app.register(fastifyStatic, {
       root: staticPath,
       prefix: '/',
+      logLevel: 'silent',
     })
 
     app.log.info(`Serving static files from ${staticPath}`)
@@ -55,10 +56,7 @@ export async function buildApp(config: IConfig) {
     // SPA fallback for non-API routes. Requests for missing assets should
     // stay 404 so the browser never receives HTML for JS/CSS files.
     app.setNotFoundHandler(async (request, reply) => {
-      const acceptsHtml = request.headers.accept?.includes('text/html') ?? false
-      const looksLikeAsset = request.url.includes('.')
-
-      if (!request.url.startsWith('/api/') && acceptsHtml && !looksLikeAsset) {
+      if (!request.url.startsWith('/api/')) {
         return reply.sendFile('index.html')
       }
 
