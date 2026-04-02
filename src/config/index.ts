@@ -63,6 +63,9 @@ const schema = Type.Object({
   ),
   GOOGLE_CLIENT_ID: Type.String(),
   GOOGLE_CLIENT_SECRET: Type.String(),
+  GOOGLE_CALLBACK_URI: Type.String({
+    default: 'http://localhost:3000/api/v1/auth/google/callback',
+  }),
   RESEND_API_KEY: Type.String(),
   JWT_ACCESS_TOKEN_SECRET: Type.String(),
   JWT_REFRESH_TOKEN_SECRET: Type.String(),
@@ -151,7 +154,7 @@ function getConfig() {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         loginPath: '/api/v1/auth/google',
-        callbackUri: 'http://localhost:3000/api/v1/auth/google/callback',
+        callbackUri: env.GOOGLE_CALLBACK_URI,
       },
     },
     mailer: {
