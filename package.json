@@ -36,6 +36,7 @@
     "@fastify/oauth2": "^8.2.0",
     "@fastify/one-line-logger": "^2.1.0",
     "@fastify/sensible": "^6.0.4",
+    "@fastify/static": "^9.0.0",
     "@fastify/swagger": "^9.7.0",
     "@scalar/fastify-api-reference": "^1.49.6",
     "close-with-grace": "^2.5.0",

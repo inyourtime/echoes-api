@@ -1,6 +1,8 @@
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import fastifyAutoload from '@fastify/autoload'
 import fastifySensible from '@fastify/sensible'
+import fastifyStatic from '@fastify/static'
 import Fastify from 'fastify'
 import Type from 'typebox'
 import type { IConfig } from './config/index.ts'
@@ -19,7 +21,7 @@ export async function buildApp(config: IConfig) {
 
   // health check
   app.get(
-    '/health',
+    '/api/health',
     {
       schema: {
         response: {
@@ -40,6 +42,26 @@ export async function buildApp(config: IConfig) {
     dirNameRoutePrefix: false,
     options: { prefix: '/api/v1', config },
   })
+
+  const staticPath = join(import.meta.dirname, '../public')
+  if (existsSync(staticPath)) {
+    await app.register(fastifyStatic, {
+      root: staticPath,
+      prefix: '/',
+      wildcard: false,
+    })
+
+    app.log.info(`Serving static files from ${staticPath}`)
+
+    // SPA fallback for non-API routes
+    app.setNotFoundHandler(async (request, reply) => {
+      if (!request.url.startsWith('/api/')) {
+        return reply.sendFile('index.html')
+      }
+
+      return reply.code(404).send({ error: 'Not found' })
+    })
+  }
 
   return app
 }
