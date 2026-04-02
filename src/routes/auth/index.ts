@@ -113,7 +113,7 @@ const route = defineRoute(
         const user = await app.userRepository.findByEmail(emailLower)
 
         if (!user?.isActive) {
-          throw app.httpErrors.unauthorized('Invalid credentials')
+          throw app.httpErrors.unauthorized('Email or password is incorrect')
         }
 
         if (!user.emailVerifiedAt) {
@@ -121,12 +121,12 @@ const route = defineRoute(
         }
 
         if (!user.passwordHash) {
-          throw app.httpErrors.unauthorized('Invalid credentials')
+          throw app.httpErrors.unauthorized('Email or password is incorrect')
         }
 
         const isPasswordValid = verifyPassword(password, user.passwordHash)
         if (!isPasswordValid) {
-          throw app.httpErrors.unauthorized('Invalid credentials')
+          throw app.httpErrors.unauthorized('Email or password is incorrect')
         }
 
         const family = generateFamily()

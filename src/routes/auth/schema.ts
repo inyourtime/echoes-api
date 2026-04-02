@@ -1,9 +1,9 @@
 import Type from 'typebox'
 
 export const RegisterBody = Type.Object({
-  email: Type.String({ format: 'email', examples: ['inyourtimeguy@gmail.com'] }),
-  password: Type.String({ minLength: 8, examples: ['12345678'] }),
-  name: Type.String({ minLength: 1, examples: ['John Doe'] }),
+  email: Type.String({ format: 'email', maxLength: 255, examples: ['inyourtimeguy@gmail.com'] }),
+  password: Type.String({ minLength: 8, maxLength: 512, examples: ['12345678'] }),
+  name: Type.String({ minLength: 1, maxLength: 255, examples: ['John Doe'] }),
 })
 
 export const RegisterResponse = Type.Object(
@@ -19,8 +19,8 @@ export const RegisterResponse = Type.Object(
 )
 
 export const LoginBody = Type.Object({
-  email: Type.String({ format: 'email', examples: ['inyourtimeguy@gmail.com'] }),
-  password: Type.String({ examples: ['12345678'] }),
+  email: Type.String({ format: 'email', maxLength: 255, examples: ['inyourtimeguy@gmail.com'] }),
+  password: Type.String({ maxLength: 512, examples: ['12345678'] }),
 })
 
 export const TokenResponse = Type.Object({
