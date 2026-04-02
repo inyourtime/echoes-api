@@ -1,5 +1,5 @@
 import { fastifyOauth2, type OAuth2Namespace } from '@fastify/oauth2'
-import { definePlugin } from '#utils/factories'
+import { definePlugin } from '../utils/factories.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {

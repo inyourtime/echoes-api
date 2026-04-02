@@ -1,5 +1,5 @@
-import { db } from '#db/index'
-import { definePlugin } from '#utils/factories'
+import { db } from '../db/index.ts'
+import { definePlugin } from '../utils/factories.ts'
 
 /**
  * Plugin for database connection

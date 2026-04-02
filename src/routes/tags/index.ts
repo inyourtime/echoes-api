@@ -1,5 +1,5 @@
 import Type from 'typebox'
-import { defineRoute } from '#utils/factories'
+import { defineRoute } from '../../utils/factories.ts'
 import {
   CreateTagBody,
   CreateTagResponse,

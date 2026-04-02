@@ -1,5 +1,5 @@
 import Type from 'typebox'
-import { OptionalWithDefault, TDate } from '#plugins/shared-schemas'
+import { OptionalWithDefault, TDate } from '../../plugins/shared-schemas.ts'
 
 // Manual track input (when not using externalId)
 const TrackInput = Type.Object(

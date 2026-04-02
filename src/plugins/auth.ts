@@ -1,5 +1,5 @@
 import type { FastifyRequest } from 'fastify'
-import { definePlugin } from '#utils/factories'
+import { definePlugin } from '../utils/factories.ts'
 import type { AccessTokenPayload } from './token.ts'
 
 const kUser = Symbol('user:context')

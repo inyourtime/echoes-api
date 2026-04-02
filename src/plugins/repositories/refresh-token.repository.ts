@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
-import { db } from '#db/index'
-import { type NewRefreshToken, type RefreshToken, refreshTokens } from '#db/schema'
-import { definePlugin } from '#utils/factories'
+import { db } from '../../db/index.ts'
+import { type NewRefreshToken, type RefreshToken, refreshTokens } from '../../db/schema.ts'
+import { definePlugin } from '../../utils/factories.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {

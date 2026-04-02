@@ -5,7 +5,7 @@ import Type, {
   type TOptionsConstruct,
   type TSchema,
 } from 'typebox'
-import { definePlugin } from '#utils/factories'
+import { definePlugin } from '../utils/factories.ts'
 
 export const TDate = Type.Unsafe<Date>({ type: 'string', format: 'date-time' })
 

@@ -1,5 +1,5 @@
 import Type from 'typebox'
-import { OptionalWithDefault } from '#plugins/shared-schemas'
+import { OptionalWithDefault } from '../../plugins/shared-schemas.ts'
 
 // Track search query
 export const TrackSearchQuery = Type.Object({

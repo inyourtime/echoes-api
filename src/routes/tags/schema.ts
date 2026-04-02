@@ -1,5 +1,5 @@
 import Type from 'typebox'
-import { TDate } from '#plugins/shared-schemas'
+import { TDate } from '../../plugins/shared-schemas.ts'
 
 // Tag info
 const TagInfo = Type.Object({

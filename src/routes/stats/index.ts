@@ -1,4 +1,4 @@
-import { defineRoute } from '#utils/factories'
+import { defineRoute } from '../../utils/factories.ts'
 import {
   MonthlyActivityQuery,
   MonthlyActivityResponse,

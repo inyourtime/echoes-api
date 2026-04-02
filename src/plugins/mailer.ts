@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
-import { definePlugin } from '#utils/factories'
 import type { IConfig } from '../config/index.ts'
+import { definePlugin } from '../utils/factories.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {
