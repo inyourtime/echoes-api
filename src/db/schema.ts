@@ -182,8 +182,8 @@ export const tracks = pgTable(
     search: tsvector('search').generatedAlwaysAs(
       (): SQL =>
         sql`
-      setweight(to_tsvector('simple', ${tracks.title}), 'A') ||
-      setweight(to_tsvector('simple', ${tracks.artist}), 'B')
+      setweight(to_tsvector('simple', ${tracks.titleNormalized}), 'A') ||
+      setweight(to_tsvector('simple', ${tracks.artistNormalized}), 'B')
     `,
     ),
 

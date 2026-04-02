@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "d8f79783-7931-4b31-b5b6-68059b52cb82",
+  "id": "66d351e0-83ee-4e40-b12a-c91e036ff413",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -505,7 +505,7 @@
       "dimensions": 0,
       "default": null,
       "generated": {
-        "as": "\n      setweight(to_tsvector('simple', \"tracks\".\"title\"), 'A') ||\n      setweight(to_tsvector('simple', \"tracks\".\"artist\"), 'B')\n    ",
+        "as": "\n      setweight(to_tsvector('simple', \"tracks\".\"title_normalized\"), 'A') ||\n      setweight(to_tsvector('simple', \"tracks\".\"artist_normalized\"), 'B')\n    ",
         "type": "stored"
       },
       "identity": null,

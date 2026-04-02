@@ -44,8 +44,8 @@ CREATE TABLE "tracks" (
 	"title" varchar(500) NOT NULL,
 	"artist" varchar(500) NOT NULL,
 	"search" tsvector GENERATED ALWAYS AS (
-      setweight(to_tsvector('simple', "tracks"."title"), 'A') ||
-      setweight(to_tsvector('simple', "tracks"."artist"), 'B')
+      setweight(to_tsvector('simple', "tracks"."title_normalized"), 'A') ||
+      setweight(to_tsvector('simple', "tracks"."artist_normalized"), 'B')
     ) STORED,
 	"created_at" timestamp(3) DEFAULT now() NOT NULL,
 	"updated_at" timestamp(3) DEFAULT now() NOT NULL
