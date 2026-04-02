@@ -1,5 +1,10 @@
 import { defineRoute } from '../../utils/factories.ts'
-import { TrackSearchQuery, TrackSearchResponse } from './schema.ts'
+import {
+  TrackSearchQuery,
+  TrackSearchResponse,
+  YouTubeTrackQuery,
+  YouTubeTrackResponse,
+} from './schema.ts'
 
 const ITUNES_SEARCH_URL = 'https://itunes.apple.com/search'
 
@@ -70,6 +75,30 @@ const route = defineRoute(
           }))
 
         return reply.send({ tracks })
+      },
+    )
+
+    // Get track details from YouTube URL
+    app.get(
+      '/youtube',
+      {
+        config: { auth: true },
+        schema: {
+          summary: 'Get track details from YouTube URL',
+          description: 'Extract track information from a YouTube video URL',
+          querystring: YouTubeTrackQuery,
+          response: {
+            200: YouTubeTrackResponse,
+            401: { $ref: 'responses#/properties/unauthorized', description: 'Unauthorized' },
+          },
+        },
+      },
+      async (request, reply) => {
+        const { url } = request.query
+
+        const track = await app.youtubeMusic.getSongByUrl(url)
+
+        return reply.send({ track })
       },
     )
   },
