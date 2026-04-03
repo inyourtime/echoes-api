@@ -1,8 +1,8 @@
 {
   "name": "echoes-api",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.0.3",
+  "description": "Backend API for the Echoes music life timeline platform.",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "node --env-file=.env --watch src/index.ts",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",

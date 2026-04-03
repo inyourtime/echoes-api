@@ -5,6 +5,7 @@ import fastifySensible from '@fastify/sensible'
 import fastifyStatic from '@fastify/static'
 import Fastify from 'fastify'
 import Type from 'typebox'
+import packageJson from '../package.json' with { type: 'json' }
 import type { IConfig } from './config/index.ts'
 import type { TypeBoxTypeProvider } from './utils/type-provider.ts'
 
@@ -27,12 +28,20 @@ export async function buildApp(config: IConfig) {
         response: {
           200: Type.Object({
             status: Type.String(),
+            name: Type.String(),
+            description: Type.String(),
+            version: Type.String(),
           }),
         },
       },
     },
     async () => {
-      return { status: 'OK' }
+      return {
+        status: 'OK',
+        name: packageJson.name,
+        description: packageJson.description,
+        version: packageJson.version,
+      }
     },
   )
 
