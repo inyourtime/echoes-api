@@ -20,6 +20,11 @@ export async function buildApp(config: IConfig) {
     options: { config },
   })
 
+  app.setErrorHandler((error, _request, reply) => {
+    app.log.error(error)
+    return reply.send(error)
+  })
+
   // health check
   app.get(
     '/api/health',

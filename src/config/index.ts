@@ -100,7 +100,7 @@ function getConfig() {
           removeAdditional: 'all',
         },
       },
-      // disableRequestLogging: true,
+      disableRequestLogging: env.LOG_LEVEL !== 'debug',
     },
     openapi: {
       openapi: {
