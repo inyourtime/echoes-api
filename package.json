@@ -1,6 +1,6 @@
 {
   "name": "echoes-api",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Backend API for the Echoes music life timeline platform.",
   "main": "dist/index.js",
   "scripts": {
