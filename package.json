@@ -33,7 +33,7 @@
     "@fastify/sensible": "^6.0.4",
     "@fastify/static": "^9.0.0",
     "@fastify/swagger": "^9.7.0",
-    "@scalar/fastify-api-reference": "^1.49.6",
+    "@scalar/fastify-api-reference": "^1.51.0",
     "close-with-grace": "^2.5.0",
     "drizzle-orm": "^1.0.0-beta.20",
     "env-schema": "^7.0.0",
