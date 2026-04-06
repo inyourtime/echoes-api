@@ -25,7 +25,7 @@ const plugin = definePlugin(
   async (app) => {
     app.decorateRequest(kUser, null)
 
-    app.decorate('authenticate', async (req) => {
+    app.decorate('authenticate', async function authenticate(req) {
       const authHeader = req.headers.authorization
 
       if (!authHeader) {

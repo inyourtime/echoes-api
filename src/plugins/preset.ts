@@ -1,10 +1,5 @@
 import type { FastifyInstance, FastifySchema, RouteOptions } from 'fastify'
-import fastifyRoutePreset from 'fastify-route-preset'
 import { definePlugin } from '../utils/factories.ts'
-
-export interface PresetOptions {
-  tags?: readonly string[]
-}
 
 function ensureSchema(routeOptions: RouteOptions) {
   routeOptions.schema ??= {}
@@ -14,11 +9,6 @@ function ensureSchema(routeOptions: RouteOptions) {
 function ensureResponseSchema(schema: FastifySchema) {
   schema.response ??= {}
   return schema.response as Record<number, unknown>
-}
-
-function applyTags(routeOptions: RouteOptions, presetOptions: PresetOptions) {
-  const schema = ensureSchema(routeOptions)
-  schema.tags ??= presetOptions.tags
 }
 
 function applyAuth(app: FastifyInstance, routeOptions: RouteOptions) {
@@ -47,16 +37,16 @@ function applyAuth(app: FastifyInstance, routeOptions: RouteOptions) {
 
 const plugin = definePlugin(
   {
-    name: 'preset',
+    name: 'route-preset',
     dependencies: ['auth'],
   },
   async (app) => {
-    app.register(fastifyRoutePreset, {
-      skipHeadRoutes: true,
-      onPresetRoute: (routeOptions, presetOptions: PresetOptions) => {
-        applyTags(routeOptions, presetOptions)
-        applyAuth(app, routeOptions)
-      },
+    app.addHook('onRoute', (routeOptions) => {
+      if (routeOptions.url.startsWith('/api/docs')) {
+        return
+      }
+
+      applyAuth(app, routeOptions)
     })
   },
 )

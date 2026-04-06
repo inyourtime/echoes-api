@@ -5,7 +5,7 @@ export const mockConfig: IConfig = {
   port: 3000,
   openapi: {} as any,
   fastifyInit: {
-    logger: true,
+    logger: false,
   },
   oauth2: {
     google: {
@@ -27,4 +27,15 @@ export const mockConfig: IConfig = {
   },
   enableCookieSecure: false,
   frontendUrl: 'http://localhost:3000',
+  enableDbConnection: false,
+}
+
+export async function buildTestApp() {
+  process.env.POSTGRES_URL = 'postgres://test:test@localhost:5432/test'
+
+  const { buildApp } = await import('../src/app.ts')
+  const app = await buildApp(mockConfig)
+  await app.ready()
+
+  return app
 }
