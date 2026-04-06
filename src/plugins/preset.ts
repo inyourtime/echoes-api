@@ -42,6 +42,10 @@ const plugin = definePlugin(
   },
   async (app) => {
     app.addHook('onRoute', (routeOptions) => {
+      if (!routeOptions.url.startsWith('/api')) {
+        return
+      }
+
       if (routeOptions.url.startsWith('/api/docs')) {
         return
       }
