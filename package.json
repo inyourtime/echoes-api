@@ -42,7 +42,7 @@
     "fastify-plugin": "^5.1.0",
     "pg": "^8.20.0",
     "resend": "^6.9.4",
-    "typebox": "^1.1.8"
+    "typebox": "^1.1.16"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
