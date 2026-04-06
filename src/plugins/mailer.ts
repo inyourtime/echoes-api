@@ -16,7 +16,7 @@ export class MailerService {
   }
 
   async sendVerification(email: string, verificationLink: string) {
-    return await this.#resend.emails.send({
+    await this.#resend.emails.send({
       from: 'Echoes <no-reply@inyt.dev>',
       to: email,
       subject: 'ยืนยันอีเมลเพื่อเปิดใช้งานบัญชีของคุณ',

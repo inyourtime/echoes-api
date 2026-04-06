@@ -18,8 +18,10 @@ const plugin = definePlugin(
     }
 
     app.addHook('onClose', async () => {
-      await db.$client.end()
-      app.log.info('Disconnected from database')
+      if (!db.$client.ended) {
+        await db.$client.end()
+        app.log.info('Disconnected from database')
+      }
     })
   },
 )
