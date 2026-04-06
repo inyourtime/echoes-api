@@ -1,16 +1,10 @@
-import { defineRoute } from '../utils/factories.ts'
+import type { TypedRoutePlugin } from '../utils/factories.ts'
 
-const route = defineRoute(
-  {
-    prefix: '/test',
-    tags: ['health'],
-  },
-  async (app) => {
-    app.get('/', { config: { auth: false } }, async () => {
-      // throw new Error('Test error')
-      return { success: true, message: 'ok' }
-    })
-  },
-)
+const route: TypedRoutePlugin = async (app) => {
+  app.get('/test', { config: { auth: false } }, async () => {
+    // throw new Error('Test error')
+    return { success: true, message: 'ok' }
+  })
+}
 
 export default route
