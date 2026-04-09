@@ -1,5 +1,24 @@
 import type { IConfig } from '../src/config/index.ts'
 
+const youtubeMusicBootstrapHtml = `<script>ytcfg.set({"INNERTUBE_API_KEY":"test-api-key","INNERTUBE_API_VERSION":"v1","INNERTUBE_CLIENT_NAME":"WEB_REMIX","INNERTUBE_CLIENT_VERSION":"1.20250401.01.00","GL":"US","HL":"en"});</script>`
+const originalFetch = globalThis.fetch.bind(globalThis)
+
+globalThis.fetch = async (input, init) => {
+  const url =
+    typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+
+  if (url === 'https://music.youtube.com/') {
+    return new Response(youtubeMusicBootstrapHtml, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html',
+      },
+    })
+  }
+
+  return originalFetch(input, init)
+}
+
 export const mockConfig: IConfig = {
   host: 'localhost',
   port: 3000,
