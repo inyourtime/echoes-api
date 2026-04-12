@@ -7,7 +7,7 @@
     "dev": "node --env-file=.env --watch src/index.ts",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --experimental-test-module-mocks --test",
+    "test": "npm run build && node --experimental-test-module-mocks --localstorage-file ./tests/.localstorage --test",
     "coverage": "npm run build && node --experimental-test-module-mocks --experimental-test-coverage --test",
     "start": "npm run build && node --env-file=.env dist/index.js",
     "lint": "biome check",
@@ -50,6 +50,7 @@
     "@types/node": "^25.5.0",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "^1.0.0-beta.22-41a7d21",
+    "msw": "^2.13.2",
     "typescript": "^6.0.2"
   }
 }

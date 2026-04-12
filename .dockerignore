@@ -56,3 +56,5 @@ build.sh
 # Public files
 public/
 
+# Local storage for tests
+tests/.localstorage

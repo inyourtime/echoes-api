@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test, { afterEach, beforeEach, describe, mock } from 'node:test'
 import type { FastifyInstance } from 'fastify'
-import { buildTestApp } from '../../helper.ts'
+import { buildTestApp, injectWithAccessToken } from '../../helper.ts'
 
 const userId = 'user-1'
 const email = 'test@example.com'
@@ -52,21 +52,21 @@ describe('GET /auth/me', () => {
   })
 
   test('should return not found when authenticated user does not exist', async () => {
-    const { accessToken } = app.tokenService.issueTokenPair({
-      user: {
+    const findByIdMock = mock.fn(async (_id: string) => undefined)
+    app.userRepository.findById = findByIdMock
+
+    const response = await injectWithAccessToken(
+      app,
+      {
+        method: 'GET',
+        url: '/api/v1/auth/me',
+      },
+      {
         id: userId,
         email,
         tokenVersion: 1,
       },
-      family: 'family-uuid-123',
-    })
-    const findByIdMock = mock.fn(async (_id: string) => undefined)
-    app.userRepository.findById = findByIdMock
-
-    const response = await injectMe({
-      authorization: `Bearer ${accessToken}`,
-    })
-    console.log(response.json())
+    )
 
     assert.strictEqual(response.statusCode, 404)
     assert.deepStrictEqual(response.json(), {
@@ -79,22 +79,22 @@ describe('GET /auth/me', () => {
   })
 
   test('should return current user when access token is valid', async () => {
-    const { accessToken } = app.tokenService.issueTokenPair({
-      user: {
-        id: userId,
-        email,
-        tokenVersion: 1,
-      },
-      family: 'family-uuid-123',
-    })
     const currentUser = createCurrentUserFixture()
     const findByIdMock = mock.fn(async (_id: string) => currentUser)
     app.userRepository.findById = findByIdMock
 
-    const response = await injectMe({
-      authorization: `Bearer ${accessToken}`,
-    })
-    console.log(response.json())
+    const response = await injectWithAccessToken(
+      app,
+      {
+        method: 'GET',
+        url: '/api/v1/auth/me',
+      },
+      {
+        id: userId,
+        email,
+        tokenVersion: 1,
+      },
+    )
 
     assert.strictEqual(response.statusCode, 200)
     assert.deepStrictEqual(response.json(), {

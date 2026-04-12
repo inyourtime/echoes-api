@@ -1,9 +1,11 @@
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
-import type { User } from '../../db/schema.ts'
+import type { User, VerificationToken, VerificationTokenType } from '../../db/schema.ts'
 import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '../../plugins/token.ts'
 import type { TypedRoutePlugin } from '../../utils/factories.ts'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '../../utils/hash.ts'
 import {
+  ForgotPasswordBody,
+  ForgotPasswordResponse,
   LoginBody,
   LogoutResponse,
   MeResponse,
@@ -11,12 +13,20 @@ import {
   RegisterResponse,
   ResendVerificationBody,
   ResendVerificationResponse,
+  ResetPasswordBody,
+  ResetPasswordResponse,
   TokenResponse,
   VerifyEmailBody,
   VerifyEmailResponse,
 } from './schema.ts'
 
 const TAGS = ['Auth']
+const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000
+const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000
+const PASSWORD_RESET_EMAIL_SENT_MESSAGE =
+  'If an account exists, a password reset email has been sent.'
+const PASSWORD_RESET_SUCCESS_MESSAGE = 'Password reset successful. You can now log in.'
+const EMAIL_VERIFICATION_SENT_MESSAGE = 'If an account exists, a verification email has been sent.'
 
 const route: TypedRoutePlugin = async (app, { config }) => {
   const {
@@ -27,6 +37,49 @@ const route: TypedRoutePlugin = async (app, { config }) => {
     mailerService,
     oauthAccountRepository,
   } = app
+
+  async function createVerificationToken(
+    userId: string,
+    type: VerificationTokenType,
+    ttlMs: number,
+  ) {
+    const { rawToken, hashedToken } = generateToken()
+
+    await verificationTokenRepository.create({
+      userId,
+      type,
+      tokenHash: hashedToken,
+      expiresAt: new Date(Date.now() + ttlMs),
+    })
+
+    return rawToken
+  }
+
+  async function findValidVerificationToken(
+    token: string,
+    type: VerificationTokenType,
+  ): Promise<VerificationToken & { user: User }> {
+    const hashedToken = hashToken(token)
+    const verificationRecord = await verificationTokenRepository.findByTokenHash(hashedToken)
+
+    if (!verificationRecord) {
+      throw app.httpErrors.badRequest('Invalid token')
+    }
+
+    if (verificationRecord.usedAt) {
+      throw app.httpErrors.badRequest('Token already used')
+    }
+
+    if (new Date() > verificationRecord.expiresAt) {
+      throw app.httpErrors.badRequest('Token expired')
+    }
+
+    if (verificationRecord.type !== type) {
+      throw app.httpErrors.badRequest('Invalid token type')
+    }
+
+    return verificationRecord
+  }
 
   app.post(
     '/auth/register',
@@ -64,13 +117,11 @@ const route: TypedRoutePlugin = async (app, { config }) => {
       })
 
       // Generate and store verification token
-      const { rawToken, hashedToken } = generateToken()
-      await verificationTokenRepository.create({
-        userId: user.id,
-        type: 'email_verification',
-        tokenHash: hashedToken,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      })
+      const rawToken = await createVerificationToken(
+        user.id,
+        'email_verification',
+        VERIFICATION_TOKEN_TTL_MS,
+      )
 
       // Send verification email
       const verificationLink = `${config.frontendUrl}/verify-email?token=${rawToken}`
@@ -159,6 +210,49 @@ const route: TypedRoutePlugin = async (app, { config }) => {
   )
 
   app.post(
+    '/auth/forgot-password',
+    {
+      config: { auth: false },
+      schema: {
+        tags: TAGS,
+        summary: 'Request a password reset email',
+        description:
+          'Send a password reset email if the account exists. Always returns success to prevent email enumeration.',
+        body: ForgotPasswordBody,
+        response: {
+          200: ForgotPasswordResponse,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { email } = request.body
+      const emailLower = email.toLowerCase()
+      const user = await userRepository.findByEmail(emailLower)
+
+      if (!user?.isActive) {
+        return reply.send({
+          message: PASSWORD_RESET_EMAIL_SENT_MESSAGE,
+        })
+      }
+
+      await verificationTokenRepository.deleteByUserAndType(user.id, 'password_reset')
+
+      const rawToken = await createVerificationToken(
+        user.id,
+        'password_reset',
+        PASSWORD_RESET_TOKEN_TTL_MS,
+      )
+
+      const resetLink = `${config.frontendUrl}/reset-password?token=${rawToken}`
+      await mailerService.sendPasswordReset(user.email, resetLink)
+
+      return reply.send({
+        message: PASSWORD_RESET_EMAIL_SENT_MESSAGE,
+      })
+    },
+  )
+
+  app.post(
     '/auth/verify-email',
     {
       config: { auth: false },
@@ -179,24 +273,7 @@ const route: TypedRoutePlugin = async (app, { config }) => {
     async (request, reply) => {
       const { token } = request.body
 
-      const hashedToken = hashToken(token)
-      const verificationRecord = await verificationTokenRepository.findByTokenHash(hashedToken)
-
-      if (!verificationRecord) {
-        throw app.httpErrors.badRequest('Invalid token')
-      }
-
-      if (verificationRecord.usedAt) {
-        throw app.httpErrors.badRequest('Token already used')
-      }
-
-      if (new Date() > verificationRecord.expiresAt) {
-        throw app.httpErrors.badRequest('Token expired')
-      }
-
-      if (verificationRecord.type !== 'email_verification') {
-        throw app.httpErrors.badRequest('Invalid token type')
-      }
+      const verificationRecord = await findValidVerificationToken(token, 'email_verification')
 
       // Mark token as used
       await verificationTokenRepository.markAsUsed(verificationRecord.id)
@@ -234,14 +311,14 @@ const route: TypedRoutePlugin = async (app, { config }) => {
       // Always return success to prevent email enumeration
       if (!user) {
         return reply.send({
-          message: 'If an account exists, a verification email has been sent.',
+          message: EMAIL_VERIFICATION_SENT_MESSAGE,
         })
       }
 
       // Skip if already verified
       if (user.emailVerifiedAt) {
         return reply.send({
-          message: 'If an account exists, a verification email has been sent.',
+          message: EMAIL_VERIFICATION_SENT_MESSAGE,
         })
       }
 
@@ -249,20 +326,50 @@ const route: TypedRoutePlugin = async (app, { config }) => {
       await verificationTokenRepository.deleteByUserAndType(user.id, 'email_verification')
 
       // Generate new token
-      const { rawToken, hashedToken } = generateToken()
-      await verificationTokenRepository.create({
-        userId: user.id,
-        type: 'email_verification',
-        tokenHash: hashedToken,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      })
+      const rawToken = await createVerificationToken(
+        user.id,
+        'email_verification',
+        VERIFICATION_TOKEN_TTL_MS,
+      )
 
       // Send verification email
       const verificationLink = `${config.frontendUrl}/verify-email?token=${rawToken}`
       await mailerService.sendVerification(user.email, verificationLink)
 
       return reply.send({
-        message: 'If an account exists, a verification email has been sent.',
+        message: EMAIL_VERIFICATION_SENT_MESSAGE,
+      })
+    },
+  )
+
+  app.post(
+    '/auth/reset-password',
+    {
+      config: { auth: false },
+      schema: {
+        tags: TAGS,
+        summary: 'Reset password using email token',
+        description: 'Reset the user password using a valid password reset token.',
+        body: ResetPasswordBody,
+        response: {
+          200: ResetPasswordResponse,
+          400: {
+            $ref: 'responses#/properties/badRequest',
+            description: 'Invalid or expired token',
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { token, password } = request.body
+      const verificationRecord = await findValidVerificationToken(token, 'password_reset')
+      const passwordHash = hashPassword(password)
+
+      await verificationTokenRepository.markAsUsed(verificationRecord.id)
+      await userRepository.updatePassword(verificationRecord.userId, passwordHash)
+
+      return reply.send({
+        message: PASSWORD_RESET_SUCCESS_MESSAGE,
       })
     },
   )

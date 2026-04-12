@@ -55,6 +55,23 @@ export const ResendVerificationResponse = Type.Object({
   message: Type.String(),
 })
 
+export const ForgotPasswordBody = Type.Object({
+  email: Type.String({ format: 'email', minLength: 1, examples: ['inyourtimeguy@gmail.com'] }),
+})
+
+export const ForgotPasswordResponse = Type.Object({
+  message: Type.String(),
+})
+
+export const ResetPasswordBody = Type.Object({
+  token: Type.String({ minLength: 1, examples: ['password_reset_token'] }),
+  password: Type.String({ minLength: 8, maxLength: 512, examples: ['12345678'] }),
+})
+
+export const ResetPasswordResponse = Type.Object({
+  message: Type.String(),
+})
+
 export const LogoutResponse = Type.Object({
   message: Type.String(),
 })

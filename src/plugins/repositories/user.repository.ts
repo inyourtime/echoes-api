@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '../../db/index.ts'
 import { type NewUser, users } from '../../db/schema.ts'
 import { definePlugin } from '../../utils/factories.ts'
@@ -31,6 +31,17 @@ export class UserRepository {
 
   async verifyEmail(id: string) {
     return db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, id)).returning()
+  }
+
+  async updatePassword(id: string, passwordHash: string) {
+    return db
+      .update(users)
+      .set({
+        passwordHash,
+        tokenVersion: sql`${users.tokenVersion} + 1`,
+      })
+      .where(eq(users.id, id))
+      .returning()
   }
 }
 

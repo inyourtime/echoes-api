@@ -1,4 +1,30 @@
+import { after, beforeEach } from 'node:test'
+import type { FastifyInstance } from 'fastify'
+import type { InjectOptions, Response as InjectResponse } from 'light-my-request'
+import { HttpResponse, http } from 'msw'
+import { setupServer } from 'msw/node'
 import type { IConfig } from '../src/config/index.ts'
+
+const youtubeMusicBootstrapHtml = `<script>ytcfg.set({"INNERTUBE_API_KEY":"test-api-key","INNERTUBE_API_VERSION":"v1","INNERTUBE_CLIENT_NAME":"WEB_REMIX","INNERTUBE_CLIENT_VERSION":"1.20250401.01.00","GL":"US","HL":"en"});</script>`
+const server = setupServer(
+  http.get('https://music.youtube.com/', () => {
+    return new HttpResponse(youtubeMusicBootstrapHtml, {
+      headers: {
+        'content-type': 'text/html',
+      },
+    })
+  }),
+)
+
+server.listen({ onUnhandledRequest: 'bypass' })
+
+beforeEach(() => {
+  server.resetHandlers()
+})
+
+after(() => {
+  server.close()
+})
 
 export const mockConfig: IConfig = {
   host: 'localhost',
@@ -38,4 +64,35 @@ export async function buildTestApp() {
   await app.ready()
 
   return app
+}
+
+type AccessTokenUser = {
+  id: string
+  email: string
+  tokenVersion: number
+}
+
+type InjectWithAccessTokenOptions = Omit<InjectOptions, 'method' | 'url' | 'headers'> & {
+  method: NonNullable<InjectOptions['method']>
+  url: string
+  headers?: Record<string, string>
+}
+
+export async function injectWithAccessToken(
+  app: FastifyInstance,
+  options: InjectWithAccessTokenOptions,
+  user: AccessTokenUser,
+): Promise<InjectResponse> {
+  const { accessToken } = app.tokenService.issueTokenPair({
+    user,
+    family: 'family-uuid-123',
+  })
+
+  return app.inject({
+    ...options,
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      ...options.headers,
+    },
+  }) as Promise<InjectResponse>
 }
