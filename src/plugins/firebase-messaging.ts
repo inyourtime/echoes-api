@@ -3,7 +3,7 @@ import { getMessaging, type Messaging, type SendResponse } from 'firebase-admin/
 import type { IConfig } from '../config/index.ts'
 import { definePlugin } from '../utils/factories.ts'
 
-const FIREBASE_APP_NAME = 'echoes-admin'
+const FIREBASE_APP_NAME = 'echoes'
 const INVALID_TOKEN_ERROR_CODES = new Set([
   'messaging/invalid-registration-token',
   'messaging/registration-token-not-registered',
