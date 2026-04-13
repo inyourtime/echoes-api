@@ -51,6 +51,14 @@ const plugin = definePlugin(
             },
             { title: '500 Internal Server Error' },
           ),
+          serviceUnavailable: Type.Object(
+            {
+              statusCode: Type.Literal(503),
+              error: Type.Literal('Service Unavailable'),
+              message: Type.String({ examples: ['Service unavailable'] }),
+            },
+            { title: '503 Service Unavailable' },
+          ),
           conflict: Type.Object(
             {
               statusCode: Type.Literal(409),

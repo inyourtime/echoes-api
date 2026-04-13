@@ -24,6 +24,7 @@ const tsvector = customType<{ data: string }>({
 const msTimestamp = (name: string) => timestamp(name, { precision: 3 })
 
 export const oauthProviderEnum = pgEnum('oauth_provider', ['google', 'github'])
+export const pushPlatformEnum = pgEnum('push_platform', ['web'])
 export const trackSourceEnum = pgEnum('track_source', ['spotify', 'apple-music', 'manual'])
 export const verificationTokenTypeEnum = pgEnum('verification_token_type', [
   'email_verification',
@@ -147,6 +148,32 @@ export const verificationTokens = pgTable(
     uniqueIndex('verification_tokens_hash_idx').on(t.tokenHash),
     index('verification_tokens_user_idx').on(t.userId),
     index('verification_tokens_expires_idx').on(t.expiresAt),
+  ],
+)
+
+// ─── push_tokens ──────────────────────────────────────────────────────────────
+
+export const pushTokens = pgTable(
+  'push_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    platform: pushPlatformEnum('platform').notNull().default('web'),
+    token: text('token').notNull(),
+    userAgent: text('user_agent'),
+    lastRegisteredAt: msTimestamp('last_registered_at').notNull().defaultNow(),
+    createdAt: msTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: msTimestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex('push_tokens_token_unique').on(t.token),
+    index('push_tokens_user_idx').on(t.userId),
+    index('push_tokens_user_platform_idx').on(t.userId, t.platform),
   ],
 )
 
@@ -314,6 +341,9 @@ export type OauthProvider = (typeof oauthProviderEnum.enumValues)[number]
 export type VerificationToken = typeof verificationTokens.$inferSelect
 export type NewVerificationToken = typeof verificationTokens.$inferInsert
 export type VerificationTokenType = (typeof verificationTokenTypeEnum.enumValues)[number]
+export type PushToken = typeof pushTokens.$inferSelect
+export type NewPushToken = typeof pushTokens.$inferInsert
+export type PushPlatform = (typeof pushPlatformEnum.enumValues)[number]
 
 // 🎵 Music Timeline Types
 export type Track = typeof tracks.$inferSelect

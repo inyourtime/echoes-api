@@ -8,6 +8,11 @@ export interface IConfig {
   port: number
   openapi: SwaggerOptions
   fastifyInit: FastifyServerOptions
+  firebase: {
+    projectId: string | null
+    clientEmail: string | null
+    privateKey: string | null
+  }
   oauth2: {
     google: {
       clientId: string
@@ -66,6 +71,9 @@ const schema = Type.Object({
   GOOGLE_CALLBACK_URI: Type.String({
     default: 'http://localhost:3000/api/v1/auth/google/callback',
   }),
+  FIREBASE_PROJECT_ID: Type.Optional(Type.String()),
+  FIREBASE_CLIENT_EMAIL: Type.Optional(Type.String()),
+  FIREBASE_PRIVATE_KEY: Type.Optional(Type.String()),
   RESEND_API_KEY: Type.String(),
   JWT_ACCESS_TOKEN_SECRET: Type.String(),
   JWT_REFRESH_TOKEN_SECRET: Type.String(),
@@ -130,6 +138,10 @@ function getConfig() {
             name: 'Track',
             description: 'Track endpoints',
           },
+          {
+            name: 'Push',
+            description: 'Push notification endpoints',
+          },
         ],
         components: {
           securitySchemes: {
@@ -148,6 +160,11 @@ function getConfig() {
           return (json.$id || `def-${i}`) as string
         },
       },
+    },
+    firebase: {
+      projectId: env.FIREBASE_PROJECT_ID ?? null,
+      clientEmail: env.FIREBASE_CLIENT_EMAIL ?? null,
+      privateKey: env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') ?? null,
     },
     oauth2: {
       google: {
