@@ -1,36 +1,30 @@
-# Build stage
+# Stage 1: Build & Prune
 FROM node:25-alpine AS builder
-
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install all dependencies (including devDependencies for build)
 RUN npm ci
 
-# Copy source code
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production stage
-FROM node:25-alpine AS production
+# Remove devDependencies and clean cache
+RUN npm prune --omit=dev && npm cache clean --force
 
+# Remove junk from production node_modules (docs, tests, maps)
+RUN find node_modules -type f -name "*.md" -delete \
+    && find node_modules -type f -name "*.ts" -delete \
+    && find node_modules -type f -name "*.map" -delete \
+    && rm -rf node_modules/**/test node_modules/**/docs
+
+# Stage 2: Production
+FROM node:25-alpine AS production
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install only production dependencies
-RUN npm ci --omit=dev
-
-# Copy built application from builder stage
+# Copy only the pruned node_modules and the build folder
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./
 
-# Expose the application port
+USER node
 EXPOSE 3000
-
-# Start the application
 CMD ["node", "dist/index.js"]
