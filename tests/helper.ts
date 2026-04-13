@@ -6,7 +6,7 @@ import { setupServer } from 'msw/node'
 import type { IConfig } from '../src/config/index.ts'
 
 const youtubeMusicBootstrapHtml = `<script>ytcfg.set({"INNERTUBE_API_KEY":"test-api-key","INNERTUBE_API_VERSION":"v1","INNERTUBE_CLIENT_NAME":"WEB_REMIX","INNERTUBE_CLIENT_VERSION":"1.20250401.01.00","GL":"US","HL":"en"});</script>`
-const server = setupServer(
+export const server = setupServer(
   http.get('https://music.youtube.com/', () => {
     return new HttpResponse(youtubeMusicBootstrapHtml, {
       headers: {
@@ -44,6 +44,16 @@ export const mockConfig: IConfig = {
       clientSecret: 'test-client-secret',
       loginPath: '/auth/google/login',
       callbackUri: '/auth/google/callback',
+    },
+    line: {
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      tokenHost: 'https://api.line.me',
+      tokenPath: '/oauth2/v2.1/token',
+      authorizeHost: 'https://access.line.me',
+      authorizePath: '/oauth2/v2.1/authorize',
+      loginPath: '/auth/line/login',
+      callbackUri: '/auth/line/callback',
     },
   },
   mailer: {

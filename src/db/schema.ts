@@ -23,7 +23,7 @@ const tsvector = customType<{ data: string }>({
 
 const msTimestamp = (name: string) => timestamp(name, { precision: 3 })
 
-export const oauthProviderEnum = pgEnum('oauth_provider', ['google', 'github'])
+export const oauthProviderEnum = pgEnum('oauth_provider', ['google', 'github', 'line'])
 export const pushPlatformEnum = pgEnum('push_platform', ['web'])
 export const trackSourceEnum = pgEnum('track_source', ['spotify', 'apple-music', 'manual'])
 export const verificationTokenTypeEnum = pgEnum('verification_token_type', [
