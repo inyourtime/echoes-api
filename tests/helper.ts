@@ -6,7 +6,7 @@ import { setupServer } from 'msw/node'
 import type { IConfig } from '../src/config/index.ts'
 
 const youtubeMusicBootstrapHtml = `<script>ytcfg.set({"INNERTUBE_API_KEY":"test-api-key","INNERTUBE_API_VERSION":"v1","INNERTUBE_CLIENT_NAME":"WEB_REMIX","INNERTUBE_CLIENT_VERSION":"1.20250401.01.00","GL":"US","HL":"en"});</script>`
-const server = setupServer(
+export const server = setupServer(
   http.get('https://music.youtube.com/', () => {
     return new HttpResponse(youtubeMusicBootstrapHtml, {
       headers: {
