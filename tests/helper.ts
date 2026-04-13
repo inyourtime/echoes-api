@@ -45,6 +45,16 @@ export const mockConfig: IConfig = {
       loginPath: '/auth/google/login',
       callbackUri: '/auth/google/callback',
     },
+    line: {
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      tokenHost: 'https://api.line.me',
+      tokenPath: '/oauth2/v2.1/token',
+      authorizeHost: 'https://access.line.me',
+      authorizePath: '/oauth2/v2.1/authorize',
+      loginPath: '/auth/line/login',
+      callbackUri: '/auth/line/callback',
+    },
   },
   mailer: {
     resendApiKey: 'test-api-key',

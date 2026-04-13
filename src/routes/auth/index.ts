@@ -1,5 +1,12 @@
+import type { OAuth2Namespace } from '@fastify/oauth2'
 import { TOKEN_ERROR_CODES } from 'fast-jwt'
-import type { User, VerificationToken, VerificationTokenType } from '../../db/schema.ts'
+import type { FastifyReply, FastifyRequest } from 'fastify'
+import type {
+  OauthProvider,
+  User,
+  VerificationToken,
+  VerificationTokenType,
+} from '../../db/schema.ts'
 import { generateFamily, type RefreshTokenPayload, slidingExpiresAt } from '../../plugins/token.ts'
 import type { TypedRoutePlugin } from '../../utils/factories.ts'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '../../utils/hash.ts'
@@ -27,6 +34,27 @@ const PASSWORD_RESET_EMAIL_SENT_MESSAGE =
   'If an account exists, a password reset email has been sent.'
 const PASSWORD_RESET_SUCCESS_MESSAGE = 'Password reset successful. You can now log in.'
 const EMAIL_VERIFICATION_SENT_MESSAGE = 'If an account exists, a verification email has been sent.'
+
+type OAuthToken = {
+  access_token: string
+  refresh_token?: string
+  id_token?: string
+  expires_at?: Date
+}
+
+type OAuthProfile = {
+  providerAccountId: string
+  email: string
+  name: string | null
+  avatarUrl: string | null
+  emailVerifiedAt: Date | null
+  shouldVerifyLinkedUser: boolean
+}
+
+type OAuthProviderDefinition = {
+  oauthClient: OAuth2Namespace
+  getProfile: (token: OAuthToken) => Promise<OAuthProfile>
+}
 
 const route: TypedRoutePlugin = async (app, { config }) => {
   const {
@@ -79,6 +107,195 @@ const route: TypedRoutePlugin = async (app, { config }) => {
     }
 
     return verificationRecord
+  }
+
+  function getOAuthTokenExpiresAt(token: OAuthToken) {
+    return token.expires_at ? new Date(token.expires_at) : undefined
+  }
+
+  async function resolveOAuthUser(
+    provider: OauthProvider,
+    profile: OAuthProfile,
+    token: OAuthToken,
+  ): Promise<User> {
+    const emailLower = profile.email.toLowerCase()
+    const tokenExpiresAt = getOAuthTokenExpiresAt(token)
+
+    const oauthAccount = await oauthAccountRepository.findByProviderAndAccountId(
+      provider,
+      profile.providerAccountId,
+    )
+
+    if (oauthAccount) {
+      await oauthAccountRepository.updateTokens(oauthAccount.id, {
+        accessToken: token.access_token,
+        refreshToken: token.refresh_token,
+        tokenExpiresAt,
+      })
+
+      return oauthAccount.user
+    }
+
+    const existingUser = await userRepository.findByEmail(emailLower)
+
+    if (existingUser) {
+      await oauthAccountRepository.create({
+        userId: existingUser.id,
+        provider,
+        providerAccountId: profile.providerAccountId,
+        accessToken: token.access_token,
+        refreshToken: token.refresh_token,
+        tokenExpiresAt,
+      })
+
+      if (!existingUser.emailVerifiedAt && profile.shouldVerifyLinkedUser) {
+        await userRepository.verifyEmail(existingUser.id)
+      }
+
+      return existingUser
+    }
+
+    const user = await userRepository.create({
+      email: emailLower,
+      name: profile.name,
+      avatarUrl: profile.avatarUrl,
+      emailVerifiedAt: profile.emailVerifiedAt,
+    })
+
+    await oauthAccountRepository.create({
+      userId: user.id,
+      provider,
+      providerAccountId: profile.providerAccountId,
+      accessToken: token.access_token,
+      refreshToken: token.refresh_token,
+      tokenExpiresAt,
+    })
+
+    return user
+  }
+
+  async function completeOAuthSignIn(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    provider: OauthProvider,
+    user: User,
+  ) {
+    if (!user.isActive) {
+      throw app.httpErrors.forbidden('Account disabled')
+    }
+
+    const family = generateFamily()
+    const expiresAt = slidingExpiresAt(config.jwt.slidingTTLMs)
+
+    const { tokenHash, ...tokenPair } = tokenService.issueTokenPair({
+      user,
+      family,
+    })
+
+    await refreshTokenRepository.createOrUpdate({
+      userId: user.id,
+      family,
+      expiresAt,
+      tokenHash,
+      tokenVersion: user.tokenVersion,
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'] || null,
+      lastUsedAt: new Date(),
+    })
+
+    reply.setCookie('refreshToken', tokenPair.refreshToken, {
+      ...app.getCookieOptions(expiresAt),
+    })
+
+    const redirectUrl = new URL(`${config.frontendUrl}/oauth/callback`)
+    redirectUrl.hash = `provider=${provider}&access_token=${tokenPair.accessToken}`
+
+    return reply.redirect(redirectUrl.toString())
+  }
+
+  function registerOAuthCallback(provider: OauthProvider, definition: OAuthProviderDefinition) {
+    app.get(
+      `/auth/${provider}/callback`,
+      {
+        config: { auth: false },
+        schema: { hide: true },
+      },
+      async (request, reply) => {
+        const { token } =
+          await definition.oauthClient.getAccessTokenFromAuthorizationCodeFlow(request)
+        const profile = await definition.getProfile(token)
+        const user = await resolveOAuthUser(provider, profile, token)
+
+        return completeOAuthSignIn(request, reply, provider, user)
+      },
+    )
+  }
+
+  async function getGoogleProfile(token: OAuthToken): Promise<OAuthProfile> {
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+      },
+    })
+
+    if (!userInfoResponse.ok) {
+      throw app.httpErrors.internalServerError('Failed to fetch user info from Google')
+    }
+
+    const googleUser = (await userInfoResponse.json()) as {
+      id: string
+      email: string
+      name?: string
+      picture?: string
+      verified_email?: boolean
+    }
+
+    const isEmailVerified = Boolean(googleUser.verified_email)
+
+    return {
+      providerAccountId: googleUser.id,
+      email: googleUser.email,
+      name: googleUser.name || null,
+      avatarUrl: googleUser.picture || null,
+      emailVerifiedAt: isEmailVerified ? new Date() : null,
+      shouldVerifyLinkedUser: isEmailVerified,
+    }
+  }
+
+  async function getLineProfile(token: OAuthToken): Promise<OAuthProfile> {
+    const userInfoResponse = await fetch(
+      new URL('/oauth2/v2.1/verify', config.oauth2.line.tokenHost),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          id_token: token.id_token ?? '',
+          client_id: config.oauth2.line.clientId,
+        }),
+      },
+    )
+
+    if (!userInfoResponse.ok) {
+      throw app.httpErrors.internalServerError('Failed to fetch user info from LINE')
+    }
+
+    const lineUser = (await userInfoResponse.json()) as {
+      sub: string
+      email: string
+      name?: string
+      picture?: string
+    }
+
+    return {
+      providerAccountId: lineUser.sub,
+      email: lineUser.email,
+      name: lineUser.name || null,
+      avatarUrl: lineUser.picture || null,
+      emailVerifiedAt: new Date(),
+      shouldVerifyLinkedUser: true,
+    }
   }
 
   app.post(
@@ -524,127 +741,15 @@ const route: TypedRoutePlugin = async (app, { config }) => {
     },
   )
 
-  app.get(
-    '/auth/google/callback',
-    {
-      config: { auth: false },
-      schema: { hide: true },
-    },
-    async (request, reply) => {
-      const { token } = await app.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(request)
+  registerOAuthCallback('google', {
+    oauthClient: app.googleOAuth2,
+    getProfile: getGoogleProfile,
+  })
 
-      // Fetch user info from Google
-      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: {
-          Authorization: `Bearer ${token.access_token}`,
-        },
-      })
-
-      if (!userInfoResponse.ok) {
-        throw app.httpErrors.internalServerError('Failed to fetch user info from Google')
-      }
-
-      const googleUser = (await userInfoResponse.json()) as {
-        id: string
-        email: string
-        name?: string
-        picture?: string
-        verified_email?: boolean
-      }
-
-      const emailLower = googleUser.email.toLowerCase()
-
-      // Check if OAuth account already exists
-      const oauthAccount = await oauthAccountRepository.findByProviderAndAccountId(
-        'google',
-        googleUser.id,
-      )
-
-      let user: User
-
-      if (oauthAccount) {
-        // Existing OAuth user - update tokens and get user
-        await oauthAccountRepository.updateTokens(oauthAccount.id, {
-          accessToken: token.access_token,
-          refreshToken: token.refresh_token,
-          tokenExpiresAt: token.expires_at ? new Date(token.expires_at) : undefined,
-        })
-        user = oauthAccount.user
-      } else {
-        // Check if user exists with same email
-        const existingUser = await userRepository.findByEmail(emailLower)
-
-        if (existingUser) {
-          // Link OAuth to existing user
-          user = existingUser
-          await oauthAccountRepository.create({
-            userId: existingUser.id,
-            provider: 'google',
-            providerAccountId: googleUser.id,
-            accessToken: token.access_token,
-            refreshToken: token.refresh_token,
-            tokenExpiresAt: token.expires_at ? new Date(token.expires_at) : undefined,
-          })
-          // Mark email as verified if not already
-          if (!existingUser.emailVerifiedAt && googleUser.verified_email) {
-            await userRepository.verifyEmail(existingUser.id)
-          }
-        } else {
-          // Create new user and OAuth account
-          user = await userRepository.create({
-            email: emailLower,
-            name: googleUser.name || null,
-            avatarUrl: googleUser.picture || null,
-            emailVerifiedAt: googleUser.verified_email ? new Date() : null,
-          })
-
-          await oauthAccountRepository.create({
-            userId: user.id,
-            provider: 'google',
-            providerAccountId: googleUser.id,
-            accessToken: token.access_token,
-            refreshToken: token.refresh_token,
-            tokenExpiresAt: token.expires_at ? new Date(token.expires_at) : undefined,
-          })
-        }
-      }
-
-      if (!user.isActive) {
-        throw app.httpErrors.forbidden('Account disabled')
-      }
-
-      // Issue tokens
-      const family = generateFamily()
-      const expiresAt = slidingExpiresAt(config.jwt.slidingTTLMs)
-
-      const { tokenHash, ...tokenPair } = tokenService.issueTokenPair({
-        user,
-        family,
-      })
-
-      await refreshTokenRepository.createOrUpdate({
-        userId: user.id,
-        family,
-        expiresAt,
-        tokenHash,
-        tokenVersion: user.tokenVersion,
-        ipAddress: request.ip,
-        userAgent: request.headers['user-agent'] || null,
-        lastUsedAt: new Date(),
-      })
-
-      // Set refresh token cookie and redirect to frontend with access token
-      reply.setCookie('refreshToken', tokenPair.refreshToken, {
-        ...app.getCookieOptions(expiresAt),
-      })
-
-      // Redirect to frontend with access token as fragment (not sent to server)
-      const redirectUrl = new URL(`${config.frontendUrl}/auth/google/callback`)
-      redirectUrl.hash = `access_token=${tokenPair.accessToken}`
-
-      return reply.redirect(redirectUrl.toString())
-    },
-  )
+  registerOAuthCallback('line', {
+    oauthClient: app.lineOAuth2,
+    getProfile: getLineProfile,
+  })
 }
 
 export default route

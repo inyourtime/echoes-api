@@ -20,6 +20,16 @@ export interface IConfig {
       loginPath: string
       callbackUri: string
     }
+    line: {
+      clientId: string
+      clientSecret: string
+      tokenHost: string
+      tokenPath: string
+      authorizeHost: string
+      authorizePath: string
+      loginPath: string
+      callbackUri: string
+    }
   }
   mailer: {
     resendApiKey: string
@@ -83,6 +93,15 @@ const schema = Type.Object({
   ENABLE_COOKIE_SECURE: Type.Boolean({ default: true }),
   FRONTEND_URL: Type.String({ default: 'http://localhost:3001' }),
   ENABLE_DB_CONNECTION: Type.Boolean({ default: true }),
+  LINE_CLIENT_ID: Type.String(),
+  LINE_CLIENT_SECRET: Type.String(),
+  LINE_TOKEN_HOST: Type.String({ default: 'https://api.line.me' }),
+  LINE_TOKEN_PATH: Type.String({ default: '/oauth2/v2.1/token' }),
+  LINE_AUTHORIZE_HOST: Type.String({ default: 'https://access.line.me' }),
+  LINE_AUTHORIZE_PATH: Type.String({ default: '/oauth2/v2.1/authorize' }),
+  LINE_CALLBACK_URI: Type.String({
+    default: 'http://localhost:3000/api/v1/auth/line/callback',
+  }),
 })
 
 function getConfig() {
@@ -172,6 +191,16 @@ function getConfig() {
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         loginPath: '/api/v1/auth/google',
         callbackUri: env.GOOGLE_CALLBACK_URI,
+      },
+      line: {
+        clientId: env.LINE_CLIENT_ID,
+        clientSecret: env.LINE_CLIENT_SECRET,
+        tokenHost: env.LINE_TOKEN_HOST,
+        tokenPath: env.LINE_TOKEN_PATH,
+        authorizeHost: env.LINE_AUTHORIZE_HOST,
+        authorizePath: env.LINE_AUTHORIZE_PATH,
+        loginPath: '/api/v1/auth/line',
+        callbackUri: env.LINE_CALLBACK_URI,
       },
     },
     mailer: {
