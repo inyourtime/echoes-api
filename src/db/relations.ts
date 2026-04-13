@@ -11,10 +11,18 @@ export const relations = defineRelations(schema, (r) => ({
   },
   users: {
     oauthAccounts: r.many.oauthAccounts(),
+    pushTokens: r.many.pushTokens(),
     refreshTokens: r.many.refreshTokens(),
     tags: r.many.tags(),
     tracks: r.many.tracks(),
     verificationTokens: r.many.verificationTokens(),
+  },
+  pushTokens: {
+    user: r.one.users({
+      from: r.pushTokens.userId,
+      to: r.users.id,
+      optional: false,
+    }),
   },
   refreshTokens: {
     user: r.one.users({

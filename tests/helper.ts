@@ -33,6 +33,11 @@ export const mockConfig: IConfig = {
   fastifyInit: {
     logger: false,
   },
+  firebase: {
+    clientEmail: null,
+    privateKey: null,
+    projectId: null,
+  },
   oauth2: {
     google: {
       clientId: 'test-client-id',
