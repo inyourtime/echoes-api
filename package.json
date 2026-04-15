@@ -42,6 +42,7 @@
     "fastify-plugin": "^5.1.0",
     "firebase-admin": "^13.8.0",
     "pg": "^8.20.0",
+    "pg-boss": "^12.15.0",
     "resend": "^6.9.4",
     "typebox": "^1.1.23"
   },

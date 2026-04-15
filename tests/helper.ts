@@ -38,6 +38,11 @@ export const mockConfig: IConfig = {
     privateKey: null,
     projectId: null,
   },
+  pgBoss: {
+    enabled: false,
+    onThisDayCron: '0 9 * * *',
+    onThisDayTimezone: 'Asia/Bangkok',
+  },
   oauth2: {
     google: {
       clientId: 'test-client-id',
