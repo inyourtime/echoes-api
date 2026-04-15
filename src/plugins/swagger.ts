@@ -24,6 +24,7 @@ const plugin = definePlugin(
         agent: { disabled: true },
         mcp: { disabled: true },
         hideClientButton: true,
+        persistAuth: true,
       },
     })
   },

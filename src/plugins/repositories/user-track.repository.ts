@@ -35,6 +35,22 @@ export interface SearchUserTracksOptions extends ListUserTracksOptions {
   listenedAtTo?: string
 }
 
+export interface FindOnThisDayMemoriesOptions {
+  userId: string
+  targetDate: Date
+  limit?: number
+}
+
+export interface OnThisDayMemory {
+  userTrackId: string
+  listenedAt: Date
+  yearsAgo: number
+  track: {
+    title: string
+    artist: string
+  }
+}
+
 export type UserTrackWithTrackAndTags = Awaited<
   ReturnType<
     typeof db.query.userTracks.findMany<{
@@ -73,6 +89,47 @@ export class UserTrackRepository {
         tags: true,
       },
     })
+  }
+
+  async findOnThisDayMemories({
+    userId,
+    targetDate,
+    limit = 5,
+  }: FindOnThisDayMemoriesOptions): Promise<OnThisDayMemory[]> {
+    const month = String(targetDate.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(targetDate.getUTCDate()).padStart(2, '0')
+    const monthDay = `${month}-${day}`
+    const targetYear = targetDate.getUTCFullYear()
+
+    const rows = await db
+      .select({
+        userTrackId: userTracks.id,
+        listenedAt: userTracks.listenedAt,
+        yearsAgo: sql<number>`${targetYear} - EXTRACT(YEAR FROM ${userTracks.listenedAt})`,
+        trackArtist: tracks.artist,
+        trackTitle: tracks.title,
+      })
+      .from(userTracks)
+      .innerJoin(tracks, eq(userTracks.trackId, tracks.id))
+      .where(
+        and(
+          eq(userTracks.userId, userId),
+          sql`TO_CHAR(${userTracks.listenedAt}, 'MM-DD') = ${monthDay}`,
+          sql`EXTRACT(YEAR FROM ${userTracks.listenedAt}) < ${targetYear}`,
+        ),
+      )
+      .orderBy(desc(userTracks.listenedAt), desc(userTracks.createdAt))
+      .limit(limit)
+
+    return rows.map((row) => ({
+      userTrackId: row.userTrackId,
+      listenedAt: row.listenedAt,
+      yearsAgo: Math.max(1, Number(row.yearsAgo)),
+      track: {
+        artist: row.trackArtist,
+        title: row.trackTitle,
+      },
+    }))
   }
 
   #buildTsQuery(search: string) {

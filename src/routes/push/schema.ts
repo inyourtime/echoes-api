@@ -54,3 +54,45 @@ export const SendPushTestResponse = Type.Object({
   message: Type.String(),
   successCount: Type.Number({ minimum: 0 }),
 })
+
+const OnThisDayTrackInfo = Type.Object({
+  artist: Type.String(),
+  title: Type.String(),
+})
+
+const OnThisDayMemoryInfo = Type.Object({
+  listenedAt: TDate,
+  track: OnThisDayTrackInfo,
+  userTrackId: Type.String(),
+  yearsAgo: Type.Integer({ minimum: 1 }),
+})
+
+export const SendOnThisDayBody = Type.Object({
+  date: Type.Optional(
+    Type.String({
+      format: 'date',
+      description: 'Target date to match memories against in YYYY-MM-DD format',
+    }),
+  ),
+  url: OptionalWithDefault(Type.String(), {
+    default: '/timeline/:id',
+    description: 'Frontend path template for the memory detail page. Use :id for userTrackId.',
+    minLength: 1,
+  }),
+})
+
+export const SendOnThisDayResponse = Type.Object({
+  date: Type.String({ format: 'date' }),
+  failureCount: Type.Number({ minimum: 0 }),
+  invalidatedCount: Type.Number({ minimum: 0 }),
+  memoryCount: Type.Number({ minimum: 0 }),
+  message: Type.String(),
+  selectedMemory: Type.Union([OnThisDayMemoryInfo, Type.Null()]),
+  sent: Type.Boolean(),
+  status: Type.Union([
+    Type.Literal('processed'),
+    Type.Literal('no_memories'),
+    Type.Literal('no_push_tokens'),
+  ]),
+  successCount: Type.Number({ minimum: 0 }),
+})
