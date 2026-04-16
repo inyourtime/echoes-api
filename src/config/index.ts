@@ -13,6 +13,11 @@ export interface IConfig {
     clientEmail: string | null
     privateKey: string | null
   }
+  pgBoss: {
+    enabled: boolean
+    onThisDayCron: string
+    onThisDayTimezone: string
+  }
   oauth2: {
     google: {
       clientId: string
@@ -84,6 +89,9 @@ const schema = Type.Object({
   FIREBASE_PROJECT_ID: Type.Optional(Type.String()),
   FIREBASE_CLIENT_EMAIL: Type.Optional(Type.String()),
   FIREBASE_PRIVATE_KEY: Type.Optional(Type.String()),
+  ENABLE_PG_BOSS: Type.Boolean({ default: true }),
+  ON_THIS_DAY_CRON: Type.String({ default: '0 9 * * *' }),
+  ON_THIS_DAY_TIMEZONE: Type.String({ default: 'Asia/Bangkok' }),
   RESEND_API_KEY: Type.String(),
   JWT_ACCESS_TOKEN_SECRET: Type.String(),
   JWT_REFRESH_TOKEN_SECRET: Type.String(),
@@ -184,6 +192,11 @@ function getConfig() {
       projectId: env.FIREBASE_PROJECT_ID ?? null,
       clientEmail: env.FIREBASE_CLIENT_EMAIL ?? null,
       privateKey: env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') ?? null,
+    },
+    pgBoss: {
+      enabled: env.ENABLE_PG_BOSS,
+      onThisDayCron: env.ON_THIS_DAY_CRON,
+      onThisDayTimezone: env.ON_THIS_DAY_TIMEZONE,
     },
     oauth2: {
       google: {

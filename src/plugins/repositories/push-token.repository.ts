@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.ts'
 import { type NewPushToken, pushTokens } from '../../db/schema.ts'
 import { definePlugin } from '../../utils/factories.ts'
@@ -42,6 +42,17 @@ export class PushTokenRepository {
     return db.query.pushTokens.findFirst({
       where: { token, userId },
     })
+  }
+
+  async findDistinctUserIds() {
+    const rows = await db
+      .select({
+        userId: sql<string>`DISTINCT ${pushTokens.userId}`,
+      })
+      .from(pushTokens)
+      .orderBy(pushTokens.userId)
+
+    return rows.map((row) => row.userId)
   }
 
   async deleteByUserIdAndToken(userId: string, token: string) {

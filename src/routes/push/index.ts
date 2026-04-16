@@ -4,14 +4,47 @@ import {
   DeletePushTokenResponse,
   RegisterPushTokenBody,
   RegisterPushTokenResponse,
+  SendOnThisDayBody,
+  SendOnThisDayResponse,
   SendPushTestBody,
   SendPushTestResponse,
 } from './schema.ts'
 
 const TAGS = ['Push']
 
+function buildTargetDate(dateInput?: string) {
+  if (dateInput) {
+    const date = new Date(`${dateInput}T00:00:00.000Z`)
+    const year = date.getUTCFullYear()
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(date.getUTCDate()).padStart(2, '0')
+    const isoDate = `${year}-${month}-${day}`
+
+    if (Number.isNaN(date.getTime()) || isoDate !== dateInput) {
+      return null
+    }
+
+    return {
+      isoDate,
+      monthDay: `${month}-${day}`,
+      targetDate: date,
+    }
+  }
+
+  const date = new Date()
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+
+  return {
+    isoDate: `${year}-${month}-${day}`,
+    monthDay: `${month}-${day}`,
+    targetDate: date,
+  }
+}
+
 const route: TypedRoutePlugin = async (app) => {
-  const { firebaseMessagingService, pushTokenRepository } = app
+  const { firebaseMessagingService, onThisDayService, pushTokenRepository } = app
 
   app.post(
     '/push/tokens',
@@ -130,6 +163,45 @@ const route: TypedRoutePlugin = async (app) => {
         message: 'Test push notification processed.',
         successCount: result.successCount,
       })
+    },
+  )
+
+  app.post(
+    '/push/on-this-day',
+    {
+      config: { auth: true },
+      schema: {
+        tags: TAGS,
+        summary: 'Send an On This Day push notification',
+        description:
+          'Find matching memories from the same calendar day in previous years and send a push notification to the authenticated user.',
+        body: SendOnThisDayBody,
+        response: {
+          200: SendOnThisDayResponse,
+          400: { $ref: 'responses#/properties/badRequest', description: 'Invalid request' },
+          401: { $ref: 'responses#/properties/unauthorized', description: 'Unauthorized' },
+          503: {
+            $ref: 'responses#/properties/serviceUnavailable',
+            description: 'Firebase messaging is not configured',
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = request.getUser().sub
+      const target = buildTargetDate(request.body.date)
+
+      if (!target) {
+        throw app.httpErrors.badRequest('Invalid target date')
+      }
+
+      const result = await onThisDayService.sendToUser({
+        date: target.targetDate,
+        urlTemplate: request.body.url,
+        userId,
+      })
+
+      return reply.send(result)
     },
   )
 }
