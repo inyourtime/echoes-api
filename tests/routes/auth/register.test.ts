@@ -65,7 +65,7 @@ describe('POST /auth/register', () => {
 
   async function buildTurnstileApp(options?: {
     trustProxy?: boolean
-    expectedHostname?: string | null
+    expectedHostname?: string[] | null
   }) {
     process.env.POSTGRES_URL = 'postgres://test:test@localhost:5432/test'
 
@@ -234,7 +234,7 @@ describe('POST /auth/register', () => {
   })
 
   test('should return bad request when turnstile verification fails', async () => {
-    const turnstileApp = await buildTurnstileApp({ expectedHostname: 'app.example.com' })
+    const turnstileApp = await buildTurnstileApp({ expectedHostname: ['app.example.com'] })
 
     server.use(
       http.post(
@@ -326,7 +326,7 @@ describe('POST /auth/register', () => {
   test('should pass forwarded client ip to turnstile when trust proxy is enabled', async () => {
     const turnstileApp = await buildTurnstileApp({
       trustProxy: true,
-      expectedHostname: 'app.example.com',
+      expectedHostname: ['app.example.com'],
     })
 
     server.use(
