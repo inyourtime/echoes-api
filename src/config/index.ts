@@ -39,6 +39,13 @@ export interface IConfig {
   mailer: {
     resendApiKey: string
   }
+  turnstile: {
+    enabled: boolean
+    secretKey: string | null
+    expectedAction: string
+    expectedHostname: string[] | null
+    timeoutMs: number
+  }
   jwt: {
     accessTokenSecret: string
     refreshTokenSecret: string
@@ -64,6 +71,8 @@ function getLoggerConfig(logLevel: string) {
 
   return { level: logLevel }
 }
+
+const TArraySeparator = Type.Unsafe<string[]>({ type: 'string', separator: ',' })
 
 const schema = Type.Object({
   PORT: Type.Number({ default: 3000 }),
@@ -93,6 +102,12 @@ const schema = Type.Object({
   ON_THIS_DAY_CRON: Type.String({ default: '0 9 * * *' }),
   ON_THIS_DAY_TIMEZONE: Type.String({ default: 'Asia/Bangkok' }),
   RESEND_API_KEY: Type.String(),
+  TRUST_PROXY: Type.String({ default: 'false' }),
+  TURNSTILE_ENABLED: Type.Boolean({ default: false }),
+  TURNSTILE_SECRET_KEY: Type.Optional(Type.String()),
+  TURNSTILE_EXPECTED_ACTION: Type.String({ default: 'register' }),
+  TURNSTILE_EXPECTED_HOSTNAME: Type.Optional(TArraySeparator),
+  TURNSTILE_TIMEOUT_MS: Type.Number({ default: 5000 }),
   JWT_ACCESS_TOKEN_SECRET: Type.String(),
   JWT_REFRESH_TOKEN_SECRET: Type.String(),
   JWT_ACCESS_TOKEN_TTL: Type.String({ default: '15m' }), // 15 minutes
@@ -112,12 +127,41 @@ const schema = Type.Object({
   }),
 })
 
+function parseTrustProxy(value: string): FastifyServerOptions['trustProxy'] {
+  const normalized = value.trim()
+
+  if (!normalized || normalized.toLowerCase() === 'false') {
+    return false
+  }
+
+  if (normalized.toLowerCase() === 'true') {
+    return true
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    return Number(normalized)
+  }
+
+  if (normalized.includes(',')) {
+    return normalized
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+  }
+
+  return normalized
+}
+
 function getConfig() {
   const env = envSchema<Static<typeof schema>>({
     dotenv: false,
     data: process.env,
     schema,
   })
+
+  if (env.TURNSTILE_ENABLED && !env.TURNSTILE_SECRET_KEY) {
+    throw new Error('TURNSTILE_SECRET_KEY is required when TURNSTILE_ENABLED=true')
+  }
 
   const config: IConfig = {
     host: env.HOST,
@@ -130,6 +174,7 @@ function getConfig() {
       bodyLimit: 1048576, // 1MB
       connectionTimeout: 60000, // 1 minute
       genReqId: () => crypto.randomUUID(),
+      trustProxy: parseTrustProxy(env.TRUST_PROXY),
       ajv: {
         customOptions: {
           removeAdditional: 'all',
@@ -218,6 +263,13 @@ function getConfig() {
     },
     mailer: {
       resendApiKey: env.RESEND_API_KEY,
+    },
+    turnstile: {
+      enabled: env.TURNSTILE_ENABLED,
+      secretKey: env.TURNSTILE_SECRET_KEY ?? null,
+      expectedAction: env.TURNSTILE_EXPECTED_ACTION,
+      expectedHostname: env.TURNSTILE_EXPECTED_HOSTNAME ?? null,
+      timeoutMs: env.TURNSTILE_TIMEOUT_MS,
     },
     jwt: {
       accessTokenSecret: env.JWT_ACCESS_TOKEN_SECRET,
