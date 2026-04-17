@@ -193,7 +193,7 @@ describe('OAuth callback routes', () => {
     assert.strictEqual(createOrUpdateMock.mock.calls[0].arguments[0].tokenHash, 'issued-token-hash')
   })
 
-  test('GET /auth/google/callback should return 500 when Google user info request fails', async () => {
+  test('GET /auth/google/callback should redirect with error details when Google user info request fails', async () => {
     server.use(
       http.get('https://www.googleapis.com/oauth2/v2/userinfo', () => {
         return new HttpResponse(null, { status: 500 })
@@ -242,12 +242,11 @@ describe('OAuth callback routes', () => {
       },
     })
 
-    assert.strictEqual(response.statusCode, 500)
-    assert.deepStrictEqual(response.json(), {
-      statusCode: 500,
-      error: 'Internal Server Error',
-      message: 'Failed to fetch user info from Google',
-    })
+    assert.strictEqual(response.statusCode, 302)
+    assert.strictEqual(
+      response.headers.location,
+      'http://localhost:3000/oauth/callback#provider=google&error=oauth_callback_failed&error_description=Failed+to+fetch+user+info+from+Google',
+    )
 
     assert.strictEqual(getAccessTokenMock.mock.callCount(), 1)
     assert.strictEqual(findByProviderAndAccountIdMock.mock.callCount(), 0)
@@ -258,7 +257,7 @@ describe('OAuth callback routes', () => {
     assert.strictEqual(createOrUpdateMock.mock.callCount(), 0)
   })
 
-  test('GET /auth/google/callback should return 403 when OAuth user account is disabled', async () => {
+  test('GET /auth/google/callback should redirect with error details when OAuth user account is disabled', async () => {
     server.use(
       http.get('https://www.googleapis.com/oauth2/v2/userinfo', () => {
         return HttpResponse.json({
@@ -334,12 +333,11 @@ describe('OAuth callback routes', () => {
       },
     })
 
-    assert.strictEqual(response.statusCode, 403)
-    assert.deepStrictEqual(response.json(), {
-      statusCode: 403,
-      error: 'Forbidden',
-      message: 'Account disabled',
-    })
+    assert.strictEqual(response.statusCode, 302)
+    assert.strictEqual(
+      response.headers.location,
+      'http://localhost:3000/oauth/callback#provider=google&error=forbidden&error_description=Account+disabled',
+    )
 
     assert.strictEqual(getAccessTokenMock.mock.callCount(), 1)
     assert.strictEqual(findByProviderAndAccountIdMock.mock.callCount(), 1)
@@ -350,7 +348,31 @@ describe('OAuth callback routes', () => {
     assert.strictEqual(createOauthAccountMock.mock.callCount(), 0)
     assert.strictEqual(issueTokenPairMock.mock.callCount(), 0)
     assert.strictEqual(createOrUpdateMock.mock.callCount(), 0)
-    assert.strictEqual(response.headers.location, undefined)
+    assert.strictEqual(response.headers['set-cookie'], undefined)
+  })
+
+  test('GET /auth/google/callback should redirect provider errors from query params', async () => {
+    const getAccessTokenMock = mock.fn(async () => {
+      throw new Error('getAccessTokenFromAuthorizationCodeFlow should not be called')
+    })
+
+    app.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow =
+      getAccessTokenMock as unknown as typeof app.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/google/callback?error=access_denied&error_description=User%20denied%20access',
+      headers: {
+        'user-agent': userAgent,
+      },
+    })
+
+    assert.strictEqual(response.statusCode, 302)
+    assert.strictEqual(
+      response.headers.location,
+      'http://localhost:3000/oauth/callback#provider=google&error=access_denied&error_description=User+denied+access',
+    )
+    assert.strictEqual(getAccessTokenMock.mock.callCount(), 0)
     assert.strictEqual(response.headers['set-cookie'], undefined)
   })
 
@@ -476,7 +498,7 @@ describe('OAuth callback routes', () => {
     assert.strictEqual(createOrUpdateMock.mock.calls[0].arguments[0].userAgent, userAgent)
   })
 
-  test('GET /auth/line/callback should return 500 when LINE verify request fails', async () => {
+  test('GET /auth/line/callback should redirect with error details when LINE verify request fails', async () => {
     server.use(
       http.post('https://api.line.me/oauth2/v2.1/verify', () => {
         return new HttpResponse(null, { status: 500 })
@@ -531,12 +553,11 @@ describe('OAuth callback routes', () => {
       },
     })
 
-    assert.strictEqual(response.statusCode, 500)
-    assert.deepStrictEqual(response.json(), {
-      statusCode: 500,
-      error: 'Internal Server Error',
-      message: 'Failed to fetch user info from LINE',
-    })
+    assert.strictEqual(response.statusCode, 302)
+    assert.strictEqual(
+      response.headers.location,
+      'http://localhost:3000/oauth/callback#provider=line&error=oauth_callback_failed&error_description=Failed+to+fetch+user+info+from+LINE',
+    )
 
     assert.strictEqual(getAccessTokenMock.mock.callCount(), 1)
     assert.strictEqual(findByProviderAndAccountIdMock.mock.callCount(), 0)
@@ -548,7 +569,7 @@ describe('OAuth callback routes', () => {
     assert.strictEqual(createOrUpdateMock.mock.callCount(), 0)
   })
 
-  test('GET /auth/line/callback should return 403 when linked user account is disabled', async () => {
+  test('GET /auth/line/callback should redirect with error details when linked user account is disabled', async () => {
     server.use(
       http.post('https://api.line.me/oauth2/v2.1/verify', () => {
         return HttpResponse.json({
@@ -621,12 +642,11 @@ describe('OAuth callback routes', () => {
       },
     })
 
-    assert.strictEqual(response.statusCode, 403)
-    assert.deepStrictEqual(response.json(), {
-      statusCode: 403,
-      error: 'Forbidden',
-      message: 'Account disabled',
-    })
+    assert.strictEqual(response.statusCode, 302)
+    assert.strictEqual(
+      response.headers.location,
+      'http://localhost:3000/oauth/callback#provider=line&error=forbidden&error_description=Account+disabled',
+    )
 
     assert.strictEqual(getAccessTokenMock.mock.callCount(), 1)
     assert.strictEqual(findByProviderAndAccountIdMock.mock.callCount(), 1)
@@ -637,7 +657,6 @@ describe('OAuth callback routes', () => {
     assert.strictEqual(createUserMock.mock.callCount(), 0)
     assert.strictEqual(issueTokenPairMock.mock.callCount(), 0)
     assert.strictEqual(createOrUpdateMock.mock.callCount(), 0)
-    assert.strictEqual(response.headers.location, undefined)
     assert.strictEqual(response.headers['set-cookie'], undefined)
   })
 })

@@ -56,6 +56,11 @@ type OAuthProviderDefinition = {
   getProfile: (token: OAuthToken) => Promise<OAuthProfile>
 }
 
+type OAuthCallbackQuery = {
+  error?: string
+  error_description?: string
+}
+
 const route: TypedRoutePlugin = async (app, { config }) => {
   const {
     userRepository,
@@ -111,6 +116,66 @@ const route: TypedRoutePlugin = async (app, { config }) => {
 
   function getOAuthTokenExpiresAt(token: OAuthToken) {
     return token.expires_at ? new Date(token.expires_at) : undefined
+  }
+
+  function buildOAuthCallbackRedirect(params: Record<string, string>) {
+    const redirectUrl = new URL(`${config.frontendUrl}/oauth/callback`)
+    redirectUrl.hash = new URLSearchParams(params).toString()
+    return redirectUrl.toString()
+  }
+
+  function getOAuthCallbackErrorDetails(error: unknown) {
+    const fallbackMessage = 'OAuth callback failed'
+
+    if (error && typeof error === 'object' && 'error' in error && typeof error.error === 'string') {
+      return {
+        error: error.error,
+        errorDescription:
+          'error_description' in error && typeof error.error_description === 'string'
+            ? error.error_description
+            : fallbackMessage,
+      }
+    }
+
+    if (error && typeof error === 'object') {
+      const statusCode =
+        'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : undefined
+      const message =
+        'message' in error && typeof error.message === 'string' && error.message.length > 0
+          ? error.message
+          : fallbackMessage
+
+      switch (statusCode) {
+        case 400:
+          return { error: 'bad_request', errorDescription: message }
+        case 401:
+          return { error: 'unauthorized', errorDescription: message }
+        case 403:
+          return { error: 'forbidden', errorDescription: message }
+        case 404:
+          return { error: 'not_found', errorDescription: message }
+        case 409:
+          return { error: 'conflict', errorDescription: message }
+        default:
+          return { error: 'oauth_callback_failed', errorDescription: message }
+      }
+    }
+
+    return { error: 'oauth_callback_failed', errorDescription: fallbackMessage }
+  }
+
+  function redirectOAuthError(
+    reply: FastifyReply,
+    provider: OauthProvider,
+    details: { error: string; errorDescription: string },
+  ) {
+    return reply.redirect(
+      buildOAuthCallbackRedirect({
+        provider,
+        error: details.error,
+        error_description: details.errorDescription,
+      }),
+    )
   }
 
   async function resolveOAuthUser(
@@ -207,10 +272,12 @@ const route: TypedRoutePlugin = async (app, { config }) => {
       ...app.getCookieOptions(expiresAt),
     })
 
-    const redirectUrl = new URL(`${config.frontendUrl}/oauth/callback`)
-    redirectUrl.hash = `provider=${provider}&access_token=${tokenPair.accessToken}`
-
-    return reply.redirect(redirectUrl.toString())
+    return reply.redirect(
+      buildOAuthCallbackRedirect({
+        provider,
+        access_token: tokenPair.accessToken,
+      }),
+    )
   }
 
   function registerOAuthCallback(provider: OauthProvider, definition: OAuthProviderDefinition) {
@@ -221,12 +288,25 @@ const route: TypedRoutePlugin = async (app, { config }) => {
         schema: { hide: true },
       },
       async (request, reply) => {
-        const { token } =
-          await definition.oauthClient.getAccessTokenFromAuthorizationCodeFlow(request)
-        const profile = await definition.getProfile(token)
-        const user = await resolveOAuthUser(provider, profile, token)
+        const { error, error_description: errorDescription } = request.query as OAuthCallbackQuery
+        if (error) {
+          return redirectOAuthError(reply, provider, {
+            error,
+            errorDescription: errorDescription || 'OAuth provider returned an error',
+          })
+        }
 
-        return completeOAuthSignIn(request, reply, provider, user)
+        try {
+          const { token } =
+            await definition.oauthClient.getAccessTokenFromAuthorizationCodeFlow(request)
+          const profile = await definition.getProfile(token)
+          const user = await resolveOAuthUser(provider, profile, token)
+
+          return await completeOAuthSignIn(request, reply, provider, user)
+        } catch (error) {
+          request.log.warn({ err: error, provider }, 'OAuth callback failed')
+          return redirectOAuthError(reply, provider, getOAuthCallbackErrorDetails(error))
+        }
       },
     )
   }
