@@ -4,6 +4,9 @@ export const RegisterBody = Type.Object({
   email: Type.String({ format: 'email', maxLength: 255, examples: ['inyourtimeguy@gmail.com'] }),
   password: Type.String({ minLength: 8, maxLength: 512, examples: ['12345678'] }),
   name: Type.String({ minLength: 1, maxLength: 255, examples: ['John Doe'] }),
+  turnstileToken: Type.Optional(
+    Type.String({ minLength: 1, maxLength: 2048, examples: ['turnstile-response-token'] }),
+  ),
 })
 
 export const RegisterResponse = Type.Object(

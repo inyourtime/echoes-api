@@ -32,6 +32,7 @@ export const mockConfig: IConfig = {
   openapi: {} as any,
   fastifyInit: {
     logger: false,
+    trustProxy: false,
   },
   firebase: {
     clientEmail: null,
@@ -63,6 +64,13 @@ export const mockConfig: IConfig = {
   },
   mailer: {
     resendApiKey: 'test-api-key',
+  },
+  turnstile: {
+    enabled: false,
+    secretKey: null,
+    expectedAction: 'register',
+    expectedHostname: null,
+    timeoutMs: 5000,
   },
   jwt: {
     accessTokenSecret: 'test-access-secret-key-min-32-bytes-long!',
