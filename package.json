@@ -52,7 +52,7 @@
     "@testcontainers/postgresql": "^11.13.0",
     "@types/node": "^25.5.0",
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "^1.0.0-beta.22-41a7d21",
+    "drizzle-kit": "^1.0.0-beta.22",
     "msw": "^2.13.2",
     "typescript": "^6.0.2"
   }
