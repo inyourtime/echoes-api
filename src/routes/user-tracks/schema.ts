@@ -213,12 +213,12 @@ export const UpdateUserTrackBody = Type.Object({
     }),
   ),
   note: Type.Optional(
-    Type.Union([Type.String(), Type.Null()], {
+    Type.Union([Type.Null(), Type.String()], {
       description: 'Personal note about this track (null to clear)',
     }),
   ),
   youtubeUrl: Type.Optional(
-    Type.Union([Type.String(), Type.Null()], {
+    Type.Union([Type.Null(), Type.String()], {
       description: 'YouTube URL for this track (null to clear)',
     }),
   ),
