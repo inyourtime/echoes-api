@@ -1,13 +1,11 @@
 import type { TestContext } from 'node:test'
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
-
-let container: StartedPostgreSqlContainer | undefined
+import { PostgreSqlContainer } from '@testcontainers/postgresql'
 
 export async function startTestDatabase(): Promise<{
   connectionString: string
   stop: () => Promise<void>
 }> {
-  container = await new PostgreSqlContainer('postgres:18-alpine')
+  const container = await new PostgreSqlContainer('postgres:18-alpine')
     .withDatabase('test_db')
     .withUsername('test_user')
     .withPassword('test_password')
@@ -18,10 +16,7 @@ export async function startTestDatabase(): Promise<{
   return {
     connectionString,
     stop: async () => {
-      if (container) {
-        await container.stop()
-        container = undefined
-      }
+      await container.stop()
     },
   }
 }

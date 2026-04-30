@@ -170,6 +170,12 @@ Tests use Node.js built-in test runner with Testcontainers for PostgreSQL:
 npm run test
 ```
 
+Run only the end-to-end suite with:
+
+```bash
+npm run test:e2e
+```
+
 ---
 
 ## Documentation
