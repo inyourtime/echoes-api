@@ -44,4 +44,5 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
-            /home/deploy/echoes-api/deploy.sh ${{ github.ref_name }}
+            cd /home/deploy/echoes-api
+            ./deploy.sh ${{ github.ref_name }}
