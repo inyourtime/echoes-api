@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import type { FastifyInstance } from 'fastify'
+import { HttpResponse, http } from 'msw'
+import { setupServer } from 'msw/node'
 import { Pool } from 'pg'
 import type { IConfig } from '../src/config/index.ts'
 import { startTestDatabase } from './database.ts'
@@ -11,6 +13,28 @@ export type SentEmail = {
   email: string
   link: string
   type: 'password_reset' | 'verification'
+}
+
+const youtubeMusicBootstrapHtml = `<script>ytcfg.set({"INNERTUBE_API_KEY":"test-api-key","INNERTUBE_API_VERSION":"v1","INNERTUBE_CLIENT_NAME":"WEB_REMIX","INNERTUBE_CLIENT_VERSION":"1.20250401.01.00","GL":"US","HL":"en"});</script>`
+
+function startExternalMocks() {
+  const server = setupServer(
+    http.get('https://music.youtube.com/', () => {
+      return new HttpResponse(youtubeMusicBootstrapHtml, {
+        headers: {
+          'content-type': 'text/html',
+        },
+      })
+    }),
+  )
+
+  server.listen({ onUnhandledRequest: 'bypass' })
+
+  return {
+    close() {
+      server.close()
+    },
+  }
 }
 
 function buildE2eConfig(): IConfig {
@@ -86,6 +110,7 @@ export async function buildE2eApp(testContext: TestContext): Promise<{
   app: FastifyInstance
   sentEmails: SentEmail[]
 }> {
+  const externalMocks = startExternalMocks()
   const { connectionString, stop } = await startTestDatabase()
   await applyMigrations(connectionString)
 
@@ -119,6 +144,8 @@ export async function buildE2eApp(testContext: TestContext): Promise<{
     } catch (error) {
       if (!isEpipe(error) && !cleanupError) cleanupError = error
     }
+
+    externalMocks.close()
 
     if (cleanupError) {
       throw cleanupError
