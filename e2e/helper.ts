@@ -4,9 +4,9 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import type { FastifyInstance } from 'fastify'
 import { Pool } from 'pg'
-import type { IConfig } from '../../src/config/index.ts'
-import { startTestDatabase } from '../database.ts'
-import { mockConfig } from '../helper.ts'
+import type { IConfig } from '../src/config/index.ts'
+import { mockConfig } from '../tests/helper.ts'
+import { startTestDatabase } from './database.ts'
 
 export type SentEmail = {
   email: string
@@ -20,7 +20,7 @@ export async function applyMigrations(connectionString: string) {
 
   try {
     await migrate(migrationDb, {
-      migrationsFolder: fileURLToPath(new URL('../../migrations', import.meta.url)),
+      migrationsFolder: fileURLToPath(new URL('../migrations', import.meta.url)),
     })
   } finally {
     await pool.end()
@@ -49,7 +49,7 @@ export async function buildE2eApp(testContext: TestContext): Promise<{
     },
   }
 
-  const { buildApp } = await import('../../src/app.ts')
+  const { buildApp } = await import('../src/app.ts')
   const app = await buildApp(config)
   await app.ready()
 

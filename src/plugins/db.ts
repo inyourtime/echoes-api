@@ -12,13 +12,15 @@ const plugin = definePlugin(
     name: 'db',
   },
   async (app, { config }) => {
-    if (config.enableDbConnection) {
+    const enableDbConnection = config.enableDbConnection ?? true
+
+    if (enableDbConnection) {
       await db.execute('SELECT 1')
       app.log.info('Connected to database')
     }
 
     app.addHook('onClose', async () => {
-      if (!db.$client.ended) {
+      if (enableDbConnection && !db.$client.ended) {
         await db.$client.end()
         app.log.info('Disconnected from database')
       }
