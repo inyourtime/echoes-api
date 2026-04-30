@@ -1,6 +1,8 @@
+import type { FastifyInstance } from 'fastify'
 import { Resend } from 'resend'
 import type { IConfig } from '../config/index.ts'
 import { definePlugin } from '../utils/factories.ts'
+import { MAIL_QUEUE, type MailJobData, mailQueueOptions } from '../workers/mail.worker.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -9,13 +11,31 @@ declare module 'fastify' {
 }
 
 export class MailerService {
+  #app: FastifyInstance
   #resend: Resend
 
-  constructor(config: IConfig) {
+  constructor(app: FastifyInstance, config: IConfig) {
+    this.#app = app
     this.#resend = new Resend(config.mailer.resendApiKey)
   }
 
   async sendVerification(email: string, verificationLink: string) {
+    await this.#enqueueOrDeliver({
+      email,
+      type: 'verification',
+      verificationLink,
+    })
+  }
+
+  async sendPasswordReset(email: string, resetLink: string) {
+    await this.#enqueueOrDeliver({
+      email,
+      resetLink,
+      type: 'password_reset',
+    })
+  }
+
+  async deliverVerification(email: string, verificationLink: string) {
     await this.#resend.emails.send({
       from: 'Echoes <no-reply@inyt.dev>',
       to: email,
@@ -71,7 +91,7 @@ export class MailerService {
     })
   }
 
-  async sendPasswordReset(email: string, resetLink: string) {
+  async deliverPasswordReset(email: string, resetLink: string) {
     await this.#resend.emails.send({
       from: 'Echoes <no-reply@inyt.dev>',
       to: email,
@@ -126,6 +146,22 @@ export class MailerService {
       `,
     })
   }
+
+  async #enqueueOrDeliver(data: MailJobData) {
+    if (this.#app.pgBoss) {
+      await this.#app.pgBoss.send(MAIL_QUEUE, data, mailQueueOptions)
+      return
+    }
+
+    switch (data.type) {
+      case 'verification':
+        await this.deliverVerification(data.email, data.verificationLink)
+        break
+      case 'password_reset':
+        await this.deliverPasswordReset(data.email, data.resetLink)
+        break
+    }
+  }
 }
 
 const plugin = definePlugin(
@@ -133,7 +169,7 @@ const plugin = definePlugin(
     name: 'mailer',
   },
   async (app, { config }) => {
-    app.decorate('mailerService', new MailerService(config))
+    app.decorate('mailerService', new MailerService(app, config))
   },
 )
 
