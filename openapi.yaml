@@ -10,12 +10,13 @@ components:
       scheme: bearer
       description: Bearer token authentication
   schemas:
-    def-0:
+    responses:
       type: object
       required:
         - badRequest
         - unauthorized
         - internalServerError
+        - serviceUnavailable
         - conflict
         - notFound
         - forbidden
@@ -71,6 +72,23 @@ components:
               type: string
               example: Internal server error
           title: 500 Internal Server Error
+        serviceUnavailable:
+          type: object
+          required:
+            - statusCode
+            - error
+            - message
+          properties:
+            statusCode:
+              type: number
+              const: 503
+            error:
+              type: string
+              const: Service Unavailable
+            message:
+              type: string
+              example: Service unavailable
+          title: 503 Service Unavailable
         conflict:
           type: object
           required:
@@ -127,8 +145,6 @@ components:
 paths:
   /api/v1/test:
     get:
-      tags:
-        - health
       security: []
       responses:
         "200":
@@ -154,14 +170,17 @@ paths:
                 email:
                   type: string
                   format: email
+                  maxLength: 255
                   example: inyourtimeguy@gmail.com
                 password:
                   type: string
                   minLength: 8
+                  maxLength: 512
                   example: "12345678"
                 name:
                   type: string
                   minLength: 1
+                  maxLength: 255
                   example: John Doe
       security: []
       responses:
@@ -196,7 +215,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/conflict"
+                $ref: "#/components/schemas/responses/properties/conflict"
   /api/v1/auth/login:
     post:
       summary: Login a user
@@ -216,9 +235,11 @@ paths:
                 email:
                   type: string
                   format: email
+                  maxLength: 255
                   example: inyourtimeguy@gmail.com
                 password:
                   type: string
+                  maxLength: 512
                   example: "12345678"
       security: []
       responses:
@@ -239,13 +260,46 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "403":
           description: Email not verified
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/forbidden"
+                $ref: "#/components/schemas/responses/properties/forbidden"
+  /api/v1/auth/forgot-password:
+    post:
+      summary: Request a password reset email
+      tags: *a1
+      description: Send a password reset email if the account exists. Always returns
+        success to prevent email enumeration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  minLength: 1
+                  example: inyourtimeguy@gmail.com
+      security: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   /api/v1/auth/verify-email:
     post:
       summary: Verify email address
@@ -282,7 +336,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/badRequest"
+                $ref: "#/components/schemas/responses/properties/badRequest"
   /api/v1/auth/resend-verification:
     post:
       summary: Resend verification email
@@ -316,6 +370,49 @@ paths:
                 properties:
                   message:
                     type: string
+  /api/v1/auth/reset-password:
+    post:
+      summary: Reset password using email token
+      tags: *a1
+      description: Reset the user password using a valid password reset token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  minLength: 1
+                  example: password_reset_token
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 512
+                  example: "12345678"
+      security: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/badRequest"
   /api/v1/auth/me:
     get:
       summary: Get current user information
@@ -359,13 +456,38 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "404":
           description: User not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/notFound"
+                $ref: "#/components/schemas/responses/properties/notFound"
+  /api/v1/auth/logout:
+    post:
+      summary: Logout user
+      tags: *a1
+      description: Logout user by invalidating the refresh token and clearing the cookie
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/unauthorized"
   /api/v1/auth/refresh:
     post:
       summary: Refresh access token
@@ -390,17 +512,318 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "403":
           description: Account disabled
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/forbidden"
+                $ref: "#/components/schemas/responses/properties/forbidden"
+  /api/v1/push/tokens:
+    post:
+      summary: Register a push token
+      tags: &a2
+        - Push
+      description: Register or refresh a Firebase Cloud Messaging token for the
+        authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                platform:
+                  enum:
+                    - web
+                token:
+                  type: string
+                  maxLength: 4096
+                  minLength: 1
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - pushToken
+                properties:
+                  message:
+                    type: string
+                  pushToken:
+                    type: object
+                    required:
+                      - createdAt
+                      - id
+                      - lastRegisteredAt
+                      - platform
+                      - updatedAt
+                      - userAgent
+                      - userId
+                    properties:
+                      createdAt:
+                        type: string
+                        format: date-time
+                      id:
+                        type: string
+                        format: uuid
+                      lastRegisteredAt:
+                        type: string
+                        format: date-time
+                      platform:
+                        enum:
+                          - web
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      userAgent:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                      userId:
+                        type: string
+                        format: uuid
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/unauthorized"
+    delete:
+      summary: Delete a push token
+      tags: *a2
+      description: Remove a Firebase Cloud Messaging token for the authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  maxLength: 4096
+                  minLength: 1
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/unauthorized"
+  /api/v1/push/test:
+    post:
+      summary: Send a test push notification
+      tags: *a2
+      description: Send a test push notification to all registered devices of the
+        authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  default: การแจ้งเตือนทดสอบจาก Echoes ส่งมาถึงอุปกรณ์นี้แล้ว
+                  maxLength: 240
+                  minLength: 1
+                title:
+                  type: string
+                  default: Echoes
+                  maxLength: 120
+                  minLength: 1
+                url:
+                  type: string
+                  default: /timeline
+                  minLength: 1
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - failureCount
+                  - invalidatedCount
+                  - message
+                  - successCount
+                properties:
+                  failureCount:
+                    type: number
+                    minimum: 0
+                  invalidatedCount:
+                    type: number
+                    minimum: 0
+                  message:
+                    type: string
+                  successCount:
+                    type: number
+                    minimum: 0
+        "400":
+          description: No push token registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/badRequest"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/unauthorized"
+        "503":
+          description: Firebase messaging is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/serviceUnavailable"
+  /api/v1/push/on-this-day:
+    post:
+      summary: Send an On This Day push notification
+      tags: *a2
+      description: Find matching memories from the same calendar day in previous years
+        and send a push notification to the authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Target date to match memories against in YYYY-MM-DD format
+                url:
+                  type: string
+                  default: /timeline/:id
+                  description: Frontend path template for the memory detail page. Use :id for
+                    userTrackId.
+                  minLength: 1
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - date
+                  - failureCount
+                  - invalidatedCount
+                  - memoryCount
+                  - message
+                  - selectedMemory
+                  - sent
+                  - status
+                  - successCount
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  failureCount:
+                    type: number
+                    minimum: 0
+                  invalidatedCount:
+                    type: number
+                    minimum: 0
+                  memoryCount:
+                    type: number
+                    minimum: 0
+                  message:
+                    type: string
+                  selectedMemory:
+                    anyOf:
+                      - type: object
+                        required:
+                          - listenedAt
+                          - track
+                          - userTrackId
+                          - yearsAgo
+                        properties:
+                          listenedAt:
+                            type: string
+                            format: date-time
+                          track:
+                            type: object
+                            required:
+                              - artist
+                              - title
+                            properties:
+                              artist:
+                                type: string
+                              title:
+                                type: string
+                          userTrackId:
+                            type: string
+                          yearsAgo:
+                            type: integer
+                            minimum: 1
+                      - type: "null"
+                  sent:
+                    type: boolean
+                  status:
+                    anyOf:
+                      - type: string
+                        const: processed
+                      - type: string
+                        const: no_memories
+                      - type: string
+                        const: no_push_tokens
+                  successCount:
+                    type: number
+                    minimum: 0
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/badRequest"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/unauthorized"
+        "503":
+          description: Firebase messaging is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/serviceUnavailable"
   /api/v1/stats/top-artists:
     get:
       summary: Get top artists
-      tags: &a2
+      tags: &a3
         - Stats
       description: Get the most saved artists for the authenticated user
       parameters:
@@ -444,11 +867,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
   /api/v1/stats/monthly-activity:
     get:
       summary: Get monthly activity
-      tags: *a2
+      tags: *a3
       description: Get track save activity per month for the last N months
       parameters:
         - schema:
@@ -491,11 +914,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
   /api/v1/stats/tag-distribution:
     get:
       summary: Get tag distribution
-      tags: *a2
+      tags: *a3
       description: Get the distribution of tags used across all user tracks
       security:
         - bearerAuth: []
@@ -544,11 +967,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
   /api/v1/stats/overview:
     get:
       summary: Get overview stats
-      tags: *a2
+      tags: *a3
       description: Get combined overview statistics for the user dashboard
       security:
         - bearerAuth: []
@@ -582,11 +1005,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
-  /api/v1/tag:
+                $ref: "#/components/schemas/responses/properties/unauthorized"
+  /api/v1/tags:
     get:
       summary: List user tags
-      tags: &a3
+      tags: &a4
         - Tag
       description: Get all tags created by the current user
       security:
@@ -632,10 +1055,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
     post:
       summary: Create tag
-      tags: *a3
+      tags: *a4
       description: Create a new tag for the current user
       requestBody:
         required: true
@@ -694,23 +1117,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/badRequest"
+                $ref: "#/components/schemas/responses/properties/badRequest"
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "409":
           description: Tag already exists
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/conflict"
-  /api/v1/tag/{id}:
+                $ref: "#/components/schemas/responses/properties/conflict"
+  /api/v1/tags/{id}:
     get:
       summary: Get tag by ID
-      tags: *a3
+      tags: *a4
       description: Get a single tag by its ID
       parameters:
         - schema:
@@ -761,16 +1184,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "404":
           description: Tag not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/notFound"
+                $ref: "#/components/schemas/responses/properties/notFound"
     patch:
       summary: Update tag
-      tags: *a3
+      tags: *a4
       description: Update a tag name or color
       requestBody:
         required: true
@@ -835,28 +1258,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/badRequest"
+                $ref: "#/components/schemas/responses/properties/badRequest"
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "404":
           description: Tag not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/notFound"
+                $ref: "#/components/schemas/responses/properties/notFound"
         "409":
           description: Tag name already exists
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/conflict"
+                $ref: "#/components/schemas/responses/properties/conflict"
     delete:
       summary: Delete tag
-      tags: *a3
+      tags: *a4
       description: Delete a tag and remove it from all user tracks
       parameters:
         - schema:
@@ -876,17 +1299,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "404":
           description: Tag not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/notFound"
-  /api/v1/track/search:
+                $ref: "#/components/schemas/responses/properties/notFound"
+  /api/v1/tracks/search:
     get:
       summary: Search tracks from Apple Music
-      tags:
+      tags: &a5
         - Track
       description: Search for tracks using Apple Music (iTunes) API
       parameters:
@@ -940,11 +1363,60 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
-  /api/v1/user-track/{id}:
+                $ref: "#/components/schemas/responses/properties/unauthorized"
+  /api/v1/tracks/youtube:
+    get:
+      summary: Get track details from YouTube URL
+      tags: *a5
+      description: Extract track information from a YouTube video URL
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+          in: query
+          name: url
+          required: true
+          description: YouTube URL (youtube.com or youtu.be)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - track
+                properties:
+                  track:
+                    anyOf:
+                      - type: object
+                        required:
+                          - videoId
+                          - title
+                          - artist
+                        properties:
+                          videoId:
+                            type: string
+                            description: YouTube video ID
+                          title:
+                            type: string
+                            description: Track title
+                          artist:
+                            type: string
+                            description: Artist name
+                      - type: "null"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responses/properties/unauthorized"
+  /api/v1/user-tracks/{id}:
     get:
       summary: Get user track by ID
-      tags: &a4
+      tags: &a6
         - User Track
       description: Get a single user track entry with track details and tags
       parameters:
@@ -1063,16 +1535,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "404":
           description: User track not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/notFound"
+                $ref: "#/components/schemas/responses/properties/notFound"
     patch:
       summary: Update user track
-      tags: *a4
+      tags: *a6
       description: Update user track fields and/or tags
       requestBody:
         required: true
@@ -1090,13 +1562,13 @@ paths:
                       type: string
                 note:
                   anyOf:
-                    - type: string
                     - type: "null"
+                    - type: string
                   description: Personal note about this track (null to clear)
                 youtubeUrl:
                   anyOf:
-                    - type: string
                     - type: "null"
+                    - type: string
                   description: YouTube URL for this track (null to clear)
                 listenedAt:
                   type: string
@@ -1224,22 +1696,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/badRequest"
+                $ref: "#/components/schemas/responses/properties/badRequest"
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "404":
           description: User track not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/notFound"
+                $ref: "#/components/schemas/responses/properties/notFound"
     delete:
       summary: Delete user track
-      tags: *a4
+      tags: *a6
       description: Delete a user track entry
       parameters:
         - schema:
@@ -1259,17 +1731,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "404":
           description: User track not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/notFound"
-  /api/v1/user-track:
+                $ref: "#/components/schemas/responses/properties/notFound"
+  /api/v1/user-tracks:
     get:
       summary: List user tracks
-      tags: *a4
+      tags: *a6
       description: Get paginated list of user tracks with optional sorting and tags
       parameters:
         - schema:
@@ -1305,6 +1777,16 @@ paths:
           name: order
           required: false
           description: Sort order
+        - schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+            maxItems: 5
+          in: query
+          name: tagIds
+          required: false
+          description: Filter by tag IDs (OR condition)
       security:
         - bearerAuth: []
       responses:
@@ -1431,10 +1913,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
     post:
       summary: Create a user track entry
-      tags: *a4
+      tags: *a6
       description: Create a user track entry
       requestBody:
         required: true
@@ -1589,23 +2071,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/badRequest"
+                $ref: "#/components/schemas/responses/properties/badRequest"
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
         "409":
           description: Already logged track
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/conflict"
-  /api/v1/user-track/search:
+                $ref: "#/components/schemas/responses/properties/conflict"
+  /api/v1/user-tracks/search:
     post:
       summary: Search user tracks
-      tags: *a4
+      tags: *a6
       description: Search user tracks by track title and artist with full-text search
       requestBody:
         required: true
@@ -1783,7 +2265,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/def-0/properties/unauthorized"
+                $ref: "#/components/schemas/responses/properties/unauthorized"
 security:
   - bearerAuth: []
 tags:
@@ -1797,3 +2279,5 @@ tags:
     description: Tag endpoints
   - name: Track
     description: Track endpoints
+  - name: Push
+    description: Push notification endpoints
