@@ -5,7 +5,7 @@ import { getBossWorkerLogEntries, getBossWorkers } from '../workers/index.ts'
 const plugin = definePlugin(
   {
     name: 'pg-boss',
-    dependencies: ['db', 'on-this-day-service'],
+    dependencies: ['db', 'mailer', 'on-this-day-service'],
   },
   async (app, { config }) => {
     const enabled = Boolean(config.enableDbConnection && config.pgBoss.enabled)
