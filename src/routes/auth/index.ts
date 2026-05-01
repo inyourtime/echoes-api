@@ -390,12 +390,25 @@ const route: TypedRoutePlugin = async (app, { config }) => {
         body: RegisterBody,
         response: {
           201: RegisterResponse,
+          400: {
+            $ref: 'responses#/properties/badRequest',
+            description: 'Invalid registration data',
+          },
           409: { $ref: 'responses#/properties/conflict', description: 'User already exists' },
+          503: {
+            $ref: 'responses#/properties/serviceUnavailable',
+            description: 'Verification service unavailable',
+          },
         },
       },
     },
     async (request, reply) => {
-      const { email, password, name } = request.body
+      const { email, password, name, turnstileToken } = request.body
+
+      await app.turnstileService.verifyOrThrow({
+        token: turnstileToken,
+        remoteIp: request.ip,
+      })
 
       const emailLower = email.toLowerCase()
 
