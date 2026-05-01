@@ -328,7 +328,7 @@ export const userTrackTags = pgTable(
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type Transaction = NodePgTransaction<any, any, any>
+export type Transaction = NodePgTransaction<any>
 
 // User and Auth Types
 export type User = typeof users.$inferSelect
