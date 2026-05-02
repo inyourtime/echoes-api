@@ -1,6 +1,6 @@
 import fastifyPgBoss from 'fastify-pg-boss'
 import { definePlugin } from '../utils/factories.ts'
-import { getBossWorkerLogEntries, getBossWorkers } from '../workers/index.ts'
+import { bossQueueRegistry, getBossWorkerLogEntries, getBossWorkers } from '../workers/index.ts'
 
 const plugin = definePlugin(
   {
@@ -9,11 +9,13 @@ const plugin = definePlugin(
   },
   async (app, { config }) => {
     const enabled = Boolean(config.enableDbConnection && config.pgBoss.enabled)
+    const workers = getBossWorkers(app, config)
 
     await app.register(fastifyPgBoss, {
       enabled,
       connectionString: process.env.POSTGRES_URL,
-      workers: getBossWorkers(config),
+      queueRegistry: bossQueueRegistry,
+      workers,
       events: {
         wip(app, workers) {
           app.log.debug(workers, 'pg-boss workers in progress')
@@ -30,7 +32,7 @@ const plugin = definePlugin(
 
     app.log.info(
       {
-        workers: getBossWorkerLogEntries(config),
+        workers: getBossWorkerLogEntries(workers),
       },
       'pg-boss started',
     )

@@ -1,28 +1,11 @@
 import type { FastifyInstance } from 'fastify'
-import { definePgBossWorker } from 'fastify-pg-boss'
 import type { Job, WorkHandler, WorkOptions } from 'pg-boss'
+import { bossQueueRegistry, MAIL_QUEUE, type MailJobData } from './queues.ts'
 
-export const MAIL_QUEUE = 'mail/send'
-
-export type MailJobData =
-  | {
-      email: string
-      type: 'verification'
-      verificationLink: string
-    }
-  | {
-      email: string
-      resetLink: string
-      type: 'password_reset'
-    }
+export { MAIL_QUEUE, type MailJobData, mailQueueOptions } from './queues.ts'
 
 export const mailWorkerOptions: WorkOptions = {
   pollingIntervalSeconds: 5,
-}
-
-export const mailQueueOptions = {
-  retryBackoff: true,
-  retryLimit: 3,
 }
 
 export function createMailWorker(app: FastifyInstance): WorkHandler<MailJobData> {
@@ -44,20 +27,10 @@ export function createMailWorker(app: FastifyInstance): WorkHandler<MailJobData>
   }
 }
 
-export function createMailWorkerDefinition() {
-  return definePgBossWorker<MailJobData>((app) => ({
-    createQueue: true,
+export function createMailWorkerDefinition(app: FastifyInstance) {
+  return bossQueueRegistry.worker(MAIL_QUEUE, {
     handler: createMailWorker(app),
     name: 'mail',
     options: mailWorkerOptions,
-    queue: MAIL_QUEUE,
-    queueOptions: mailQueueOptions,
-  }))
-}
-
-export function getMailWorkerLogEntry() {
-  return {
-    name: 'mail',
-    queue: MAIL_QUEUE,
-  }
+  })
 }

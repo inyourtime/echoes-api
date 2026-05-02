@@ -1,14 +1,9 @@
 import type { FastifyInstance } from 'fastify'
-import { definePgBossWorker } from 'fastify-pg-boss'
 import type { Job, WorkHandler, WorkOptions } from 'pg-boss'
 import type { IConfig } from '../config/index.ts'
+import { bossQueueRegistry, ON_THIS_DAY_QUEUE, type OnThisDayJobData } from './queues.ts'
 
-export const ON_THIS_DAY_QUEUE = 'notifications/on-this-day/daily'
-
-export type OnThisDayJobData = {
-  date?: string
-  urlTemplate?: string
-}
+export { ON_THIS_DAY_QUEUE, type OnThisDayJobData } from './queues.ts'
 
 export const onThisDayWorkerOptions: WorkOptions = {
   pollingIntervalSeconds: 10,
@@ -36,13 +31,11 @@ export function createOnThisDayWorker(app: FastifyInstance): WorkHandler<OnThisD
   }
 }
 
-export function createOnThisDayWorkerDefinition(config: IConfig) {
-  return definePgBossWorker<OnThisDayJobData>((app) => ({
-    createQueue: true,
+export function createOnThisDayWorkerDefinition(app: FastifyInstance, config: IConfig) {
+  return bossQueueRegistry.worker(ON_THIS_DAY_QUEUE, {
     handler: createOnThisDayWorker(app),
     name: 'on-this-day',
     options: onThisDayWorkerOptions,
-    queue: ON_THIS_DAY_QUEUE,
     schedule: {
       cron: config.pgBoss.onThisDayCron,
       data: {},
@@ -50,14 +43,5 @@ export function createOnThisDayWorkerDefinition(config: IConfig) {
         tz: config.pgBoss.onThisDayTimezone,
       },
     },
-  }))
-}
-
-export function getOnThisDayWorkerLogEntry(config: IConfig) {
-  return {
-    name: 'on-this-day',
-    queue: ON_THIS_DAY_QUEUE,
-    schedule: config.pgBoss.onThisDayCron,
-    timezone: config.pgBoss.onThisDayTimezone,
-  }
+  })
 }
