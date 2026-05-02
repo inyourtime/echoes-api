@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { Resend } from 'resend'
 import type { IConfig } from '../config/index.ts'
 import { definePlugin } from '../utils/factories.ts'
-import { MAIL_QUEUE, type MailJobData, mailQueueOptions } from '../workers/mail.worker.ts'
+import { MAIL_QUEUE, type MailJobData, mailQueueOptions } from '../workers/queues.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {

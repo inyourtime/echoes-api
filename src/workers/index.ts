@@ -5,6 +5,8 @@ import {
   getOnThisDayWorkerLogEntry,
 } from './on-this-day.worker.ts'
 
+export { type BossQueues, bossQueueRegistry } from './queues.ts'
+
 export function getBossWorkers(config: IConfig) {
   return [createMailWorkerDefinition(), createOnThisDayWorkerDefinition(config)]
 }
