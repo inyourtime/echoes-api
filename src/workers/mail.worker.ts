@@ -27,17 +27,10 @@ export function createMailWorker(app: FastifyInstance): WorkHandler<MailJobData>
   }
 }
 
-export function createMailWorkerDefinition() {
-  return bossQueueRegistry.worker(MAIL_QUEUE, (app) => ({
+export function createMailWorkerDefinition(app: FastifyInstance) {
+  return bossQueueRegistry.worker(MAIL_QUEUE, {
     handler: createMailWorker(app),
     name: 'mail',
     options: mailWorkerOptions,
-  }))
-}
-
-export function getMailWorkerLogEntry() {
-  return {
-    name: 'mail',
-    queue: MAIL_QUEUE,
-  }
+  })
 }

@@ -31,8 +31,8 @@ export function createOnThisDayWorker(app: FastifyInstance): WorkHandler<OnThisD
   }
 }
 
-export function createOnThisDayWorkerDefinition(config: IConfig) {
-  return bossQueueRegistry.worker(ON_THIS_DAY_QUEUE, (app) => ({
+export function createOnThisDayWorkerDefinition(app: FastifyInstance, config: IConfig) {
+  return bossQueueRegistry.worker(ON_THIS_DAY_QUEUE, {
     handler: createOnThisDayWorker(app),
     name: 'on-this-day',
     options: onThisDayWorkerOptions,
@@ -43,14 +43,5 @@ export function createOnThisDayWorkerDefinition(config: IConfig) {
         tz: config.pgBoss.onThisDayTimezone,
       },
     },
-  }))
-}
-
-export function getOnThisDayWorkerLogEntry(config: IConfig) {
-  return {
-    name: 'on-this-day',
-    queue: ON_THIS_DAY_QUEUE,
-    schedule: config.pgBoss.onThisDayCron,
-    timezone: config.pgBoss.onThisDayTimezone,
-  }
+  })
 }
